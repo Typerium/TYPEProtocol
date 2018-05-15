@@ -91,6 +91,9 @@ contract Crowdsale {
   // Amount of sold tokens
   uint256 public soldTokens;
 
+  // Amount of tokens processed
+  uint256 public processedTokens;
+
   // Amount of unsold tokens to burn
   uint256 public unSoldTokens;
 
@@ -238,6 +241,7 @@ contract Crowdsale {
 
     soldTokens = 0;
     unSoldTokens = 0;
+    processedTokens = 0;
 
     lockedTokens = 0;
     distributedTokens = 0;
@@ -289,68 +293,68 @@ contract Crowdsale {
     uint256 tokens = 0;
     uint256 bonusTokens = 0;
 
-    if(soldTokens < capLevels[1]) {
+    if(processedTokens < capLevels[1]) {
 
         tokens = _getTokensAmount(amountPaid, 1);
         bonusTokens = _getBonusAmount(tokens, 1);
 
         // If the amount of tokens that you want to buy gets out of round 1
-        if(soldTokens.add(tokens) > capLevels[1]) {
+        if(processedTokens.add(tokens) > capLevels[1]) {
             setCurrentRound(2);
             tokens = _calculateExcessTokens(amountPaid, 1);
             bonusTokens = _calculateExcessBonus(tokens, 2);
         }
 
     // Round 2
-    } else if(soldTokens >= capLevels[1] && soldTokens < capLevels[2]) {
+    } else if(processedTokens >= capLevels[1] && processedTokens < capLevels[2]) {
         tokens = _getTokensAmount(amountPaid, 2);
         bonusTokens = _getBonusAmount(tokens, 2);
 
         // If the amount of tokens that you want to buy gets out of round 2
-        if(soldTokens.add(tokens) > capLevels[2]) {
+        if(processedTokens.add(tokens) > capLevels[2]) {
             setCurrentRound(3);
             tokens = _calculateExcessTokens(amountPaid, 2);
             bonusTokens = _calculateExcessBonus(tokens, 3);
         }
 
     // Round 3
-    } else if(soldTokens >= capLevels[2] && soldTokens < capLevels[3]) {
+    } else if(processedTokens >= capLevels[2] && processedTokens < capLevels[3]) {
          tokens = _getTokensAmount(amountPaid, 3);
          bonusTokens = _getBonusAmount(tokens, 3);
 
          // If the amount of tokens that you want to buy gets out of round 3
-         if(soldTokens.add(tokens) > capLevels[3]) {
+         if(processedTokens.add(tokens) > capLevels[3]) {
             setCurrentRound(4);
             tokens = _calculateExcessTokens(amountPaid, 3);
             bonusTokens = _calculateExcessBonus(tokens, 4);
          }
 
     // Round 4
-    } else if(soldTokens >= capLevels[3] && soldTokens < capLevels[4]) {
+    } else if(processedTokens >= capLevels[3] && processedTokens < capLevels[4]) {
          tokens = _getTokensAmount(amountPaid, 4);
          bonusTokens = _getBonusAmount(tokens, 4);
 
          // If the amount of tokens that you want to buy gets out of round 4
-         if(soldTokens.add(tokens) > capLevels[4]) {
+         if(processedTokens.add(tokens) > capLevels[4]) {
             setCurrentRound(5);
             tokens = _calculateExcessTokens(amountPaid, 4);
             bonusTokens = _calculateExcessBonus(tokens, 5);
          }
 
     // Round 5
-    } else if(soldTokens >= capLevels[4] && soldTokens < capLevels[5]) {
+    } else if(processedTokens >= capLevels[4] && processedTokens < capLevels[5]) {
          tokens = _getTokensAmount(amountPaid, 5);
          bonusTokens = _getBonusAmount(tokens, 5);
 
          // If the amount of tokens that you want to buy gets out of round 5
-         if(soldTokens.add(tokens) > capLevels[5]) {
+         if(processedTokens.add(tokens) > capLevels[5]) {
             setCurrentRound(6);
             tokens = _calculateExcessTokens(amountPaid, 5);
             bonusTokens = 0;
          }
 
     // Round 6
-    } else if(soldTokens >= capLevels[5]) {
+    } else if(processedTokens >= capLevels[5]) {
         tokens = _getTokensAmount(amountPaid, 6);
     }
 
@@ -358,6 +362,7 @@ contract Crowdsale {
     weiRaised = weiRaised.add(amountPaid);
     soldTokens = soldTokens.add(tokens);
     soldTokens = soldTokens.add(bonusTokens);
+    processedTokens = processedTokens.add(soldTokens);
 
     // Keep a record of how many tokens everybody gets in case we need to do refunds
     tokensBought[msg.sender] = tokensBought[msg.sender].add(tokens);
@@ -397,7 +402,7 @@ contract Crowdsale {
 
     bool withinPeriod = hasStarted() && hasNotEnded();
     bool nonZeroPurchase = msg.value > 0;
-    bool withinTokenLimit = soldTokens < maxTokensRaised;
+    bool withinTokenLimit = processedTokens < maxTokensRaised;
     bool minimumPurchase = msg.value >= minPurchase;
 
     require(withinPeriod);
@@ -443,7 +448,7 @@ contract Crowdsale {
   }
 
     function _calculateExcessBonus(uint256 tokens, uint256 level) internal view returns (uint256 totalBonus) {
-        uint256 thisLevelTokens = soldTokens.add(tokens);
+        uint256 thisLevelTokens = processedTokens.add(tokens);
         uint256 nextLevelTokens = thisLevelTokens.sub(capLevels[level]);
         totalBonus = _getBonusAmount(nextLevelTokens, level);
     }
@@ -456,7 +461,7 @@ contract Crowdsale {
       require(roundSelected >= 1 && roundSelected <= 6);
 
       uint _rate = rateLevels[roundSelected];
-      uint weiThisRound = capLevels[roundSelected].sub(soldTokens).div(_rate);
+      uint weiThisRound = capLevels[roundSelected].sub(processedTokens).div(_rate);
       uint weiNextRound = amount.sub(weiThisRound);
       uint tokensNextRound = 0;
 
@@ -467,7 +472,7 @@ contract Crowdsale {
       else
          msg.sender.transfer(weiNextRound);
 
-      totalTokens = capLevels[roundSelected].sub(soldTokens).add(tokensNextRound);
+      totalTokens = capLevels[roundSelected].sub(processedTokens).add(tokensNextRound);
    }
 
 
@@ -496,13 +501,17 @@ contract Crowdsale {
     wallet.transfer(_amount);
   }
 
+   function _changeLockDate(uint256 _newDate) onlyOwner external {
+    lockedTill = _newDate;
+  }
+
   function changeWallet(address _newWallet) onlyOwner external {
     wallet = _newWallet;
   }
 
    /// @notice Public function to check if the crowdsale has ended or not
    function hasNotEnded() public constant returns(bool) {
-      return now < endTime && soldTokens < maxTokensRaised;
+      return now < endTime && processedTokens < maxTokensRaised;
    }
 
    /// @notice Public function to check if the crowdsale has started or not
@@ -518,9 +527,9 @@ contract Crowdsale {
     //move to next round by overwriting soldTokens value, unsold tokens will be burned;
    function goNextRound() onlyOwner external {
        uint256 unSoldTokensLastRound;
-       unSoldTokensLastRound = capLevels[currentRound].sub(soldTokens);
+       unSoldTokensLastRound = capLevels[currentRound].sub(processedTokens);
        unSoldTokens.add(unSoldTokensLastRound);
-       soldTokens = capLevels[currentRound];
+       processedTokens = capLevels[currentRound];
        currentRound = currentRound.add(1);
        currentRoundStart = now;
    }
@@ -547,6 +556,7 @@ contract Crowdsale {
         require(lockedTokens > 0);
         uint256 _lockedTokensToTransfer = lockedBalances[_beneficiary];
         token.transfer(_beneficiary, _lockedTokensToTransfer);
+        distributedBalances[_beneficiary] = distributedBalances[_beneficiary].add(_lockedTokensToTransfer);
         lockedTokens.sub(_lockedTokensToTransfer);
     }
 
