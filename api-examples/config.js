@@ -1,7 +1,7 @@
 var apiURL = "https://ropsten.infura.io/M6z4fZW1F0INgQ5TGwGO";   // remove ropsten. when going main-net
 
 //address of crowdSale smart-contract
-var contractAddress = '0x393c87717ec42204a991251b9d2573bf0a1c44a1'; // change when real-contract published
+var contractAddress = '0xe89ac4b707f1d9aa81c6d5eac17f700752a7f4dd'; // change when real-contract published
 //address of typeToken smart-contract
 var tokenAddress = '0x6979a9c4e260f51a22e54b798d6a91d59fd13054'; // change when going main-net for real token
 
@@ -571,6 +571,39 @@ var crowdSaleAbi =
 		"type": "function"
 	},
 	{
+		"anonymous": false,
+		"inputs": [],
+		"name": "Pause",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"name": "purchaser",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"name": "beneficiary",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"name": "value",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "TokenPurchase",
+		"type": "event"
+	},
+	{
 		"constant": false,
 		"inputs": [
 			{
@@ -620,39 +653,6 @@ var crowdSaleAbi =
 		"payable": true,
 		"stateMutability": "payable",
 		"type": "function"
-	},
-	{
-		"anonymous": false,
-		"inputs": [],
-		"name": "Pause",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"name": "purchaser",
-				"type": "address"
-			},
-			{
-				"indexed": true,
-				"name": "beneficiary",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"name": "value",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "TokenPurchase",
-		"type": "event"
 	},
 	{
 		"constant": false,
@@ -822,6 +822,11 @@ var crowdSaleAbi =
 		"type": "constructor"
 	},
 	{
+		"payable": true,
+		"stateMutability": "payable",
+		"type": "fallback"
+	},
+	{
 		"constant": false,
 		"inputs": [],
 		"name": "unpause",
@@ -829,11 +834,6 @@ var crowdSaleAbi =
 		"payable": false,
 		"stateMutability": "nonpayable",
 		"type": "function"
-	},
-	{
-		"payable": true,
-		"stateMutability": "payable",
-		"type": "fallback"
 	},
 	{
 		"constant": true,
@@ -882,6 +882,20 @@ var crowdSaleAbi =
 			}
 		],
 		"name": "capLevels",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "checkUnsold",
 		"outputs": [
 			{
 				"name": "",

@@ -24,7 +24,7 @@
               <a class="nav-link" href="api.html" target="_blank">Code &amp; Tutorial</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" target="_blank" href="https://ropsten.etherscan.io/address/0x393c87717ec42204a991251b9d2573bf0a1c44a1">Contract</a>
+              <a class="nav-link" target="_blank" href="https://ropsten.etherscan.io/address/0xe89ac4b707f1d9aa81c6d5eac17f700752a7f4dd">Contract</a>
             </li>
           </ul>
         </nav>
@@ -34,8 +34,8 @@
       <div class="jumbotron">
         <h1 class="display-5">Typerium ICO Contract Address</h1>
         <br>
-        <p class="lead"><strong>0x393c87717ec42204a991251b9d2573bf0a1c44a1</strong></p>
-        <p>Send ether to <a href="https://ropsten.etherscan.io/address/0x393c87717ec42204a991251b9d2573bf0a1c44a1" target="_blank">contract address</a> in order to buy <a href="https://ropsten.etherscan.io/token/0x6979a9c4e260f51a22e54b798d6a91d59fd13054" target="_blank">TYPE tokens</a> (minimum 0.0001 ETH)</p>
+        <p class="lead"><strong>0xe89ac4b707f1d9aa81c6d5eac17f700752a7f4dd</strong></p>
+        <p>Send ether to <a href="https://ropsten.etherscan.io/address/0xe89ac4b707f1d9aa81c6d5eac17f700752a7f4dd" target="_blank">contract address</a> in order to buy <a href="https://ropsten.etherscan.io/token/0x6979a9c4e260f51a22e54b798d6a91d59fd13054" target="_blank">TYPE tokens</a> (minimum 0.0001 ETH)</p>
         <br>
         <h1 class="display-5">Total Raised</h1>
         <p class="lead"><strong id="raised">0</strong> ETH</p>
@@ -128,10 +128,11 @@
         contractInstance.methods.currentBonusLevel().call().then(function(value) {
           document.getElementById('bonus').innerHTML = value;
         });
-        //current round limit value
-        contractInstance.methods.currentCapLevel().call().then(function(value) {
-          document.getElementById('round-limit').innerHTML = value / decimals
-          document.getElementById('available-this-round').innerHTML = (value - sold) / decimals;
+        //current round available tokens
+        contractInstance.methods.currentCapLevel().call().then(function(todo) {
+            contractInstance.methods.processedTokens().call().then(function(done) {
+            document.getElementById('available-this-round').innerHTML = (todo - done) / decimals;
+          });
         });
         //current round rate per 1 ETH
         contractInstance.methods.currentRateLevel().call().then(function(value) {
@@ -153,6 +154,11 @@
         //when unlock date is
         contractInstance.methods.lockedTill().call().then(function(value) {
           document.getElementById('unlocked').innerHTML = moment.unix(value).format();
+        });
+        //unsold tokens being added after each round closes
+        contractInstance.methods.unSoldTokens().call().then(function(amount) {
+          document.getElementById('unsold').innerHTML = amount / decimals;
+          sold = amount; //save for future computation
         });
     </script>
   </body>
