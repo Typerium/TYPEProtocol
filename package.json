@@ -1,0 +1,26 @@
+{
+  "name": "TYPEProtocol",
+  "version": "1.0.0",
+  "description": "Typerium TYPE Protocol Development",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Typerium/TYPEProtocol.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Typerium/TYPEProtocol/issues"
+  },
+  "homepage": "https://github.com/Typerium/TYPEProtocol#readme",
+  "dependencies": {
+    "zeppelin-solidity": "1.8.0"
+  }
+}

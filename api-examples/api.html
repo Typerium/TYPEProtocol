@@ -1,0 +1,161 @@
+<html>
+<head>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+<script language="javascript" type="text/javascript" src="web3.min.js"></script>
+<script language="javascript" type="text/javascript" src="config.js"></script>
+<script>
+
+//connect to web-socket to have a web3-provider
+//var web3 = new Web3(new Web3.providers.WebsocketProvider("wss://ropsten.infura.io/ws"));
+var web3 = new Web3(new Web3.providers.HttpProvider("https://ropsten.infura.io/M6z4fZW1F0INgQ5TGwGO"));
+//address of crowdSale smart-contract
+var contractAddress = '0x81040d6aa0e642feea5e3ff420eb02b3781e66ff';
+//address of typeToken smart-contract
+var tokenAddress = '0x6979a9c4e260f51a22e54b798d6a91d59fd13054';
+var contractInstance = new web3.eth.Contract(crowdSaleAbi, contractAddress);
+var tokenInstance = new web3.eth.Contract(tokenAbi, tokenAddress);
+
+var tokenDecimals = 4;
+var etherDecimals = 18;
+
+console.log(contractInstance.methods);
+
+function tokensSold() {
+  contractInstance.methods.soldTokens().call().then(function(amount) {
+    alert(amount / (10 ** tokenDecimals) + ' TYPE');
+  });
+}
+
+function tokensBoughtByWallet(wallet) {
+  contractInstance.methods.tokensBought(wallet).call().then(function(amount) {
+    alert(amount / (10 ** tokenDecimals) + ' TYPE');
+  });
+}
+
+function tokensAvailable() {
+  balanceOf(contractAddress);
+}
+
+function example1() {
+  var wallet = document.getElementById('example1').value;
+  balanceOf(wallet);
+}
+
+function example2() {
+  var wallet = document.getElementById('example2').value;
+  tokensBoughtByWallet(wallet);
+}
+
+function balanceOf(wallet) {
+  tokenInstance.methods.balanceOf(wallet).call().then(function(amount) {
+    alert(amount / (10 ** tokenDecimals) + ' TYPE');
+  });
+}
+
+
+function currentRate() {
+  contractInstance.methods.rate().call().then(function(rate) {
+    document.getElementById('currentRate').value = rate;
+  });
+}
+
+  function allowance() {
+    var sender = document.getElementById('allowance').value;
+    if(web3.isAddress(sender)) {
+      tokenContract.allowance(sender, escrowContractAddress, (err, res) => {
+        console.log(res/(10 ** decimals) + ' CL');
+        alert(res/(10 ** decimals) + ' CL');
+      });
+    } else {
+      alert('incorrect address provided');
+    }
+  }
+
+  function buy() {
+    alert('coming soon...')
+  }
+
+  function balance(address) {
+  	tokenContract.balanceOf(address, (err, res) => {
+	  alert(res/(10 ** decimals) + ' CL');
+	  console.log(res/(10 ** decimals) + ' CL');
+    });
+  }
+
+</script>
+</head>
+<body>
+    <div class="container">
+      <div class="py-5 text-center">
+        <img class="d-block mx-auto mb-4" src="logo.jpeg" style="width:300px">
+        <p class="lead">Below is an example for the API calls for Typerium project ICO contract execution</p>
+      </div>
+      <div class="row">
+        <div class="col-md-12 order-md-1">
+          <h4 class="mb-3">Example 1</h4>
+            <div class="row">
+              <div class="col-md-12 mb-6">
+                <label for="firstName">Check TYPE token balance of specific wallet (ex: 0xa803c226c8281550454523191375695928DcFE92)</label>
+                <div class="input-group">
+                  <input type="text" class="form-control" id="example1" placeholder="Wallet Address">
+                  <div class="input-group-append">
+                    <button class="btn btn-secondary" onclick=example1()>Check Balance</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <br>
+            <h4 class="mb-3">Example 2</h4>
+            <div class="row">
+              <div class="col-md-12 mb-6">
+                <label for="firstName">Check TYPE token amount purchased during ICO by specific wallet (ex: 0xa803c226c8281550454523191375695928DcFE92)</label>
+                <div class="input-group">
+                  <input type="text" class="form-control" id="example2" placeholder="Wallet address">
+                  <div class="input-group-append">
+                    <button class="btn btn-secondary" onclick=example2()>Check Amount</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <br>
+            <h4 class="mb-3">Example 3</h4>
+              <div class="row">
+                <div class="col-md-12 mb-6">
+                  <label for="firstName">Check TYPE token amount received as BONUS during ICO token purchase by wallet (ex: 0xa803c226c8281550454523191375695928DcFE92)</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="currentRate" placeholder="Rate at which tokens are being sold so far">
+                    <div class="input-group-append">
+                      <button class="btn btn-secondary" onclick="currentRate()">Check Rate</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <br>
+              <!--<h4 class="mb-3">Call 3</h4>
+                <div class="row">
+                  <div class="col-md-12 mb-6">
+                    <label for="firstName">Current Rate</label>
+                    <div class="input-group">
+                      <input type="text" class="form-control" placeholder="Step Id" style="width:1%" id="step">
+                      <input type="text" class="form-control" placeholder="Senders Address" style="width:31%" id="from">
+                      <input type="text" class="form-control" placeholder="Receivers Address" style="width:31%" id="to">
+                      <input type="text" class="form-control" placeholder="Tokens Amount" style="width:5%" id="amount">
+                    </div>
+                  </div>
+                </div>
+                <br>-->
+                <button class="btn btn-primary btn-lg btn-block" onclick="buy()">Buy Tokens</button>
+            <hr class="mb-4">
+            <div class="row">
+            <div class="col-md-6">
+              <button class="btn btn-primary btn-lg btn-block" onclick="tokensSold()">Check tokesn sold through ICO smart-contract</button>
+            </div>
+            <div class="col-md-6">
+            <button class="btn btn-primary btn-lg btn-block" onclick="tokensAvailable()">Check tokens available in ICO smart-contract</button>
+          </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <br><br><br><br>
+</body>
