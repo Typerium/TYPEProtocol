@@ -5,13 +5,9 @@
 <script language="javascript" type="text/javascript" src="config.js"></script>
 <script>
 
-//connect to web-socket to have a web3-provider
-//var web3 = new Web3(new Web3.providers.WebsocketProvider("wss://ropsten.infura.io/ws"));
-var web3 = new Web3(new Web3.providers.HttpProvider("https://ropsten.infura.io/M6z4fZW1F0INgQ5TGwGO"));
-//address of crowdSale smart-contract
-var contractAddress = '0x81040d6aa0e642feea5e3ff420eb02b3781e66ff';
-//address of typeToken smart-contract
-var tokenAddress = '0x6979a9c4e260f51a22e54b798d6a91d59fd13054';
+//connect to web3-provider
+var web3 = new Web3(new Web3.providers.HttpProvider(apiURL));
+
 var contractInstance = new web3.eth.Contract(crowdSaleAbi, contractAddress);
 var tokenInstance = new web3.eth.Contract(tokenAbi, tokenAddress);
 
@@ -20,38 +16,86 @@ var etherDecimals = 18;
 
 console.log(contractInstance.methods);
 
-function tokensSold() {
-  contractInstance.methods.soldTokens().call().then(function(amount) {
+//Check TYPE token amount allocated during ICO to specific wallet (bought + bonus) (ex: 0x641AD78BAca220C5BD28b51Ce8e0F495e85Fe689)
+function example0() {
+  var wallet = document.getElementById('example0').value;
+  fullAmount(wallet)
+}
+
+//Check TYPE token amount distributed to specific wallet (ex: 0x641AD78BAca220C5BD28b51Ce8e0F495e85Fe689)
+function example1() {
+  var wallet = document.getElementById('example1').value;
+  distributedBalances(wallet);
+}
+
+//Check TYPE token amount locked by contract for specific wallet (ex: 0x641AD78BAca220C5BD28b51Ce8e0F495e85Fe689)
+function example2() {
+  var wallet = document.getElementById('example2').value;
+  lockedBalances(wallet);
+}
+
+//Check TYPE token amount purchased during ICO by specific wallet (ex: 0x641AD78BAca220C5BD28b51Ce8e0F495e85Fe689)
+function example3() {
+  var wallet = document.getElementById('example3').value;
+  tokensBought(wallet);
+}
+
+//Check TYPE token amount received as BONUS during ICO token purchase by wallet (ex: 0x641AD78BAca220C5BD28b51Ce8e0F495e85Fe689)
+function example4() {
+  var wallet = document.getElementById('example4').value;
+  bonusBalances(wallet);
+}
+
+//Check ETH amount contributed to contract during ICO by specific wallet (ex: 0x641AD78BAca220C5BD28b51Ce8e0F495e85Fe689)
+function example5() {
+  var wallet = document.getElementById('example5').value;
+  crowdsaleBalances(wallet);
+}
+
+//example0
+function fullAmount(wallet) {
+  contractInstance.methods.tokensBought(wallet).call().then(function(bought) {
+    contractInstance.methods.bonusBalances(wallet).call().then(function(bonus) {
+    var full = parseInt(bought) + parseInt(bonus);
+    alert(full / (10 ** tokenDecimals) + ' TYPE');
+    });
+  });
+}
+
+//example1
+function distributedBalances(wallet) {
+  contractInstance.methods.distributedBalances(wallet).call().then(function(amount) {
     alert(amount / (10 ** tokenDecimals) + ' TYPE');
   });
 }
 
-function tokensBoughtByWallet(wallet) {
+//example2
+function lockedBalances(wallet) {
+  contractInstance.methods.lockedBalances(wallet).call().then(function(amount) {
+    alert(amount / (10 ** tokenDecimals) + ' TYPE');
+  });
+}
+
+//example3
+function tokensBought(wallet) {
   contractInstance.methods.tokensBought(wallet).call().then(function(amount) {
     alert(amount / (10 ** tokenDecimals) + ' TYPE');
   });
 }
 
-function tokensAvailable() {
-  balanceOf(contractAddress);
-}
-
-function example1() {
-  var wallet = document.getElementById('example1').value;
-  balanceOf(wallet);
-}
-
-function example2() {
-  var wallet = document.getElementById('example2').value;
-  tokensBoughtByWallet(wallet);
-}
-
-function balanceOf(wallet) {
-  tokenInstance.methods.balanceOf(wallet).call().then(function(amount) {
+//example4
+function bonusBalances(wallet) {
+  contractInstance.methods.bonusBalances(wallet).call().then(function(amount) {
     alert(amount / (10 ** tokenDecimals) + ' TYPE');
   });
 }
 
+//example5
+function crowdsaleBalances(wallet) {
+  contractInstance.methods.crowdsaleBalances(wallet).call().then(function(amount) {
+    alert(amount / (10 ** etherDecimals) + ' ETH');
+  });
+}
 
 function currentRate() {
   contractInstance.methods.rate().call().then(function(rate) {
@@ -75,10 +119,28 @@ function currentRate() {
     alert('coming soon...')
   }
 
-  function balance(address) {
-  	tokenContract.balanceOf(address, (err, res) => {
-	  alert(res/(10 ** decimals) + ' CL');
-	  console.log(res/(10 ** decimals) + ' CL');
+
+  function tokensSold() {
+    contractInstance.methods.soldTokens().call().then(function(amount) {
+      alert(amount / (10 ** tokenDecimals) + ' TYPE');
+    });
+  }
+
+  function tokensDistributed() {
+    contractInstance.methods.distributedTokens().call().then(function(amount) {
+      alert(amount / (10 ** tokenDecimals) + ' TYPE');
+    });
+  }
+
+  function lockedTokens() {
+    contractInstance.methods.lockedTokens().call().then(function(amount) {
+      alert(amount / (10 ** tokenDecimals) + ' TYPE');
+    });
+  }
+
+  function weiRaised() {
+    contractInstance.methods.weiRaised().call().then(function(amount) {
+      alert(amount / (10 ** etherDecimals) + ' ETH');
     });
   }
 
@@ -92,10 +154,23 @@ function currentRate() {
       </div>
       <div class="row">
         <div class="col-md-12 order-md-1">
+          <h4 class="mb-3">Example 0</h4>
+            <div class="row">
+              <div class="col-md-12 mb-6">
+                <label for="firstName">Check TYPE token amount allocated during ICO to specific wallet (bought + bonus) (ex: 0x641AD78BAca220C5BD28b51Ce8e0F495e85Fe689)</label>
+                <div class="input-group">
+                  <input type="text" class="form-control" id="example0" placeholder="Wallet Address">
+                  <div class="input-group-append">
+                    <button class="btn btn-secondary" onclick=example0()>Check Balance</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <br>
           <h4 class="mb-3">Example 1</h4>
             <div class="row">
               <div class="col-md-12 mb-6">
-                <label for="firstName">Check TYPE token balance of specific wallet (ex: 0xa803c226c8281550454523191375695928DcFE92)</label>
+                <label for="firstName">Check TYPE token amount distributed to specific wallet (ex: 0x641AD78BAca220C5BD28b51Ce8e0F495e85Fe689)</label>
                 <div class="input-group">
                   <input type="text" class="form-control" id="example1" placeholder="Wallet Address">
                   <div class="input-group-append">
@@ -106,31 +181,57 @@ function currentRate() {
             </div>
             <br>
             <h4 class="mb-3">Example 2</h4>
+              <div class="row">
+                <div class="col-md-12 mb-6">
+                  <label for="firstName">Check TYPE token amount locked by contract for specific wallet (ex: 0x641AD78BAca220C5BD28b51Ce8e0F495e85Fe689)</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="example2" placeholder="Rate at which tokens are being sold so far">
+                    <div class="input-group-append">
+                      <button class="btn btn-secondary" onclick="example2()">Check Amount</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <br>
+            <h4 class="mb-3">Example 3</h4>
             <div class="row">
               <div class="col-md-12 mb-6">
-                <label for="firstName">Check TYPE token amount purchased during ICO by specific wallet (ex: 0xa803c226c8281550454523191375695928DcFE92)</label>
+                <label for="firstName">Check TYPE token amount purchased during ICO by specific wallet (ex: 0x641AD78BAca220C5BD28b51Ce8e0F495e85Fe689)</label>
                 <div class="input-group">
-                  <input type="text" class="form-control" id="example2" placeholder="Wallet address">
+                  <input type="text" class="form-control" id="example3" placeholder="Wallet address">
                   <div class="input-group-append">
-                    <button class="btn btn-secondary" onclick=example2()>Check Amount</button>
+                    <button class="btn btn-secondary" onclick=example3()>Check Amount</button>
                   </div>
                 </div>
               </div>
             </div>
             <br>
-            <h4 class="mb-3">Example 3</h4>
+            <h4 class="mb-3">Example 4</h4>
               <div class="row">
                 <div class="col-md-12 mb-6">
-                  <label for="firstName">Check TYPE token amount received as BONUS during ICO token purchase by wallet (ex: 0xa803c226c8281550454523191375695928DcFE92)</label>
+                  <label for="firstName">Check TYPE token amount received as BONUS during ICO token purchase by wallet (ex: 0x641AD78BAca220C5BD28b51Ce8e0F495e85Fe689)</label>
                   <div class="input-group">
-                    <input type="text" class="form-control" id="currentRate" placeholder="Rate at which tokens are being sold so far">
+                    <input type="text" class="form-control" id="example4" placeholder="Rate at which tokens are being sold so far">
                     <div class="input-group-append">
-                      <button class="btn btn-secondary" onclick="currentRate()">Check Rate</button>
+                      <button class="btn btn-secondary" onclick="example4()">Check Amount</button>
                     </div>
                   </div>
                 </div>
               </div>
               <br>
+                <h4 class="mb-3">Example 5</h4>
+                  <div class="row">
+                    <div class="col-md-12 mb-6">
+                      <label for="firstName">Check ETH amount contributed to contract during ICO by specific wallet (ex: 0x641AD78BAca220C5BD28b51Ce8e0F495e85Fe689)</label>
+                      <div class="input-group">
+                        <input type="text" class="form-control" id="example5" placeholder="Rate at which tokens are being sold so far">
+                        <div class="input-group-append">
+                          <button class="btn btn-secondary" onclick="example5()">Check Amount</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                <br>
               <!--<h4 class="mb-3">Call 3</h4>
                 <div class="row">
                   <div class="col-md-12 mb-6">
@@ -151,9 +252,18 @@ function currentRate() {
               <button class="btn btn-primary btn-lg btn-block" onclick="tokensSold()">Check tokesn sold through ICO smart-contract</button>
             </div>
             <div class="col-md-6">
-            <button class="btn btn-primary btn-lg btn-block" onclick="tokensAvailable()">Check tokens available in ICO smart-contract</button>
+            <button class="btn btn-primary btn-lg btn-block" onclick="tokensDistributed()">Check tokens distributed by ICO smart-contract</button>
           </div>
           </div>
+          <hr class="mb-4">
+          <div class="row">
+          <div class="col-md-6">
+            <button class="btn btn-primary btn-lg btn-block" onclick="lockedTokens()">Check tokesn locked in ICO smart-contract</button>
+          </div>
+          <div class="col-md-6">
+          <button class="btn btn-primary btn-lg btn-block" onclick="weiRaised()">Check ETH raised by ICO smart-contract</button>
+        </div>
+        </div>
         </div>
       </div>
     </div>

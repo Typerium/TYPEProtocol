@@ -1,3 +1,10 @@
+var apiURL = "https://ropsten.infura.io/M6z4fZW1F0INgQ5TGwGO";   // remove ropsten. when going main-net
+
+//address of crowdSale smart-contract
+var contractAddress = '0x393c87717ec42204a991251b9d2573bf0a1c44a1'; // change when real-contract published
+//address of typeToken smart-contract
+var tokenAddress = '0x6979a9c4e260f51a22e54b798d6a91d59fd13054'; // change when going main-net for real token
+
 var tokenAbi = [
 {
   "anonymous": false,
@@ -565,6 +572,20 @@ var crowdSaleAbi =
 	},
 	{
 		"constant": false,
+		"inputs": [
+			{
+				"name": "_newDate",
+				"type": "uint256"
+			}
+		],
+		"name": "_changeLockDate",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
 		"inputs": [],
 		"name": "_withdrawAllFunds",
 		"outputs": [],
@@ -764,9 +785,18 @@ var crowdSaleAbi =
 		"type": "function"
 	},
 	{
-		"payable": true,
-		"stateMutability": "payable",
-		"type": "fallback"
+		"constant": false,
+		"inputs": [
+			{
+				"name": "_beneficiary",
+				"type": "address"
+			}
+		],
+		"name": "transferLockedBalance",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
 	},
 	{
 		"inputs": [
@@ -799,6 +829,11 @@ var crowdSaleAbi =
 		"payable": false,
 		"stateMutability": "nonpayable",
 		"type": "function"
+	},
+	{
+		"payable": true,
+		"stateMutability": "payable",
+		"type": "fallback"
 	},
 	{
 		"constant": true,
@@ -893,6 +928,20 @@ var crowdSaleAbi =
 	{
 		"constant": true,
 		"inputs": [],
+		"name": "currentCapLevel",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
 		"name": "currentRateLevel",
 		"outputs": [
 			{
@@ -908,6 +957,39 @@ var crowdSaleAbi =
 		"constant": true,
 		"inputs": [],
 		"name": "currentRoundStart",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "distributedBalances",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "distributedTokens",
 		"outputs": [
 			{
 				"name": "",
@@ -962,12 +1044,45 @@ var crowdSaleAbi =
 	},
 	{
 		"constant": true,
-		"inputs": [],
-		"name": "isEnded",
+		"inputs": [
+			{
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "lockedBalances",
 		"outputs": [
 			{
 				"name": "",
-				"type": "bool"
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "lockedTill",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "lockedTokens",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"payable": false,
@@ -1010,6 +1125,20 @@ var crowdSaleAbi =
 			{
 				"name": "",
 				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "processedTokens",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"payable": false,
@@ -1167,3 +1296,5 @@ var crowdSaleAbi =
 		"type": "function"
 	}
 ];
+
+//var web3 = new Web3(new Web3.providers.WebsocketProvider("wss://ropsten.infura.io/ws"));
