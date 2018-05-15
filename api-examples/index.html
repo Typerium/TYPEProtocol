@@ -131,7 +131,8 @@
         //current round available tokens
         contractInstance.methods.currentCapLevel().call().then(function(todo) {
             contractInstance.methods.processedTokens().call().then(function(done) {
-            document.getElementById('available-this-round').innerHTML = (todo - done) / decimals;
+              document.getElementById('round-limit').innerHTML = todo / decimals
+              document.getElementById('available-this-round').innerHTML = (todo - done) / decimals;
           });
         });
         //current round rate per 1 ETH
