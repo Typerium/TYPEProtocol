@@ -94,6 +94,12 @@ contract Crowdsale {
   // Amount of unsold tokens to burn
   uint256 public unSoldTokens;
 
+  // Amount of locked tokens
+  uint256 public lockedTokens;
+
+  // Amount of distributed tokens
+  uint256 public distributedTokens;
+
   // ICO state paused or not
   bool public paused = false;
 
@@ -115,8 +121,8 @@ contract Crowdsale {
   // Timestamp when the crowdsale ends 07/07/2018 @ 00:00am (UTC);
   uint256 public endTime = 1530921600;
 
-  // If the crowdsale has ended or not
-  bool public isEnded = false;
+  // Timestamp when locked tokens become unlocked 21/09/2018 @ 00:00am (UTC);
+  uint256 public lockedTill = 1537488000;
 
   // How much each user paid for the crowdsale
   mapping(address => uint256) public crowdsaleBalances;
@@ -127,6 +133,12 @@ contract Crowdsale {
   // How many tokens each user got for the crowdsale as bonus
   mapping(address => uint256) public bonusBalances;
 
+  // How many tokens each user got locked
+  mapping(address => uint256) public lockedBalances;
+
+  // How many tokens each user got distributed
+  mapping(address => uint256) public distributedBalances;
+
   // Bonus levels per each round
   mapping (uint => uint) public bonusLevels;
 
@@ -135,6 +147,7 @@ contract Crowdsale {
 
   // Cap levels per each round
   mapping (uint => uint) public capLevels;
+
 
   /**
    * Event for token purchase logging
@@ -223,7 +236,12 @@ contract Crowdsale {
     token = _token;
     owner = _owner;
 
+    soldTokens = 0;
     unSoldTokens = 0;
+
+    lockedTokens = 0;
+    distributedTokens = 0;
+
     currentRound = 1;
 
     //bonus values per each round;
@@ -388,14 +406,6 @@ contract Crowdsale {
     require(minimumPurchase);
   }
 
-  /**
-   * @dev Source of tokens. Override this method to modify the way in which the crowdsale ultimately gets and sends its tokens.
-   * @param _beneficiary Address performing the token purchase
-   * @param _tokenAmount Number of tokens to be emitted
-   */
-  function _deliverTokens(address _beneficiary, uint256 _tokenAmount) internal {
-    token.transfer(_beneficiary, _tokenAmount);
-  }
 
   /**
    * @dev Executed when a purchase has been validated and is ready to be executed. Not necessarily emits/sends tokens.
@@ -403,7 +413,23 @@ contract Crowdsale {
    * @param _tokenAmount Number of tokens to be purchased
    */
   function _processPurchase(address _beneficiary, uint256 _tokenAmount) internal {
-    _deliverTokens(_beneficiary, _tokenAmount);
+    uint256 _tokensToDeliver = _tokenAmount.div(2);
+    uint256 _tokensToLock = _tokenAmount.sub(_tokensToDeliver);
+    _deliverTokens(_beneficiary, _tokensToDeliver);
+    _lockTokens(_beneficiary, _tokensToLock);
+
+    distributedBalances[_beneficiary] = distributedBalances[_beneficiary].add(_tokensToDeliver);
+  }
+
+
+  function _deliverTokens(address _beneficiary, uint256 _tokenAmount) internal {
+    token.transfer(_beneficiary, _tokenAmount);
+    distributedTokens = distributedTokens.add(_tokenAmount);
+  }
+
+  function _lockTokens(address _beneficiary, uint256 _tokenAmount) internal {
+    lockedBalances[_beneficiary] = lockedBalances[_beneficiary].add(_tokenAmount);
+    lockedTokens = lockedTokens.add(_tokenAmount);
   }
 
   /**
@@ -514,4 +540,14 @@ contract Crowdsale {
     function currentCapLevel() public view returns(uint256) {
         return capLevels[currentRound];
     }
+
+    function transferLockedBalance(address _beneficiary) public {
+        require(_beneficiary != address(0));
+        require(now >= lockedTill);
+        require(lockedTokens > 0);
+        uint256 _lockedTokensToTransfer = lockedBalances[_beneficiary];
+        token.transfer(_beneficiary, _lockedTokensToTransfer);
+        lockedTokens.sub(_lockedTokensToTransfer);
+    }
+
 }
