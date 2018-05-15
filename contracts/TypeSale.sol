@@ -143,13 +143,13 @@ contract Crowdsale {
   mapping(address => uint256) public distributedBalances;
 
   // Bonus levels per each round
-  mapping (uint => uint) public bonusLevels;
+  mapping (uint256 => uint256) public bonusLevels;
 
   // Rate levels per each round
-  mapping (uint => uint) public rateLevels;
+  mapping (uint256 => uint256) public rateLevels;
 
   // Cap levels per each round
-  mapping (uint => uint) public capLevels;
+  mapping (uint256 => uint256) public capLevels;
 
 
   /**
@@ -198,7 +198,7 @@ contract Crowdsale {
     rateLevels[_rateIndex] = _rateValue;
   }
 
-  function setMinPurchase (uint _minPurchase) onlyOwner external {
+  function setMinPurchase (uint256 _minPurchase) onlyOwner external {
     minPurchase = _minPurchase;
   }
 
@@ -443,7 +443,7 @@ contract Crowdsale {
    * @return Number of bonus tokens that can be distributed with the specified bonus percent
    */
   function _getBonusAmount(uint256 _tokenAmount, uint256 _bonusIndex) internal view returns (uint256) {
-    uint bonusValue = _tokenAmount.mul(bonusLevels[_bonusIndex]);
+    uint256 bonusValue = _tokenAmount.mul(bonusLevels[_bonusIndex]);
     return bonusValue.div(100);
   }
 
@@ -460,10 +460,10 @@ contract Crowdsale {
       require(amount > 0);
       require(roundSelected >= 1 && roundSelected <= 6);
 
-      uint _rate = rateLevels[roundSelected];
-      uint weiThisRound = capLevels[roundSelected].sub(processedTokens).div(_rate);
-      uint weiNextRound = amount.sub(weiThisRound);
-      uint tokensNextRound = 0;
+      uint256 _rate = rateLevels[roundSelected];
+      uint256 weiThisRound = capLevels[roundSelected].sub(processedTokens).div(_rate);
+      uint256 weiNextRound = amount.sub(weiThisRound);
+      uint256 tokensNextRound = 0;
 
       // If there's excessive wei for the last tier, refund those
       if(roundSelected != 6) {
@@ -481,7 +481,7 @@ contract Crowdsale {
    {
       require(weiPaid > 0);
       require(roundSelected >= 1 && roundSelected <= 6);
-      uint typeTokenWei = weiPaid.div(1E14);
+      uint256 typeTokenWei = weiPaid.div(1E14);
       calculatedTokens = typeTokenWei.mul(rateLevels[roundSelected]);
 
    }
@@ -526,13 +526,23 @@ contract Crowdsale {
 
     //move to next round by overwriting soldTokens value, unsold tokens will be burned;
    function goNextRound() onlyOwner external {
-       uint256 unSoldTokensLastRound;
-       unSoldTokensLastRound = capLevels[currentRound].sub(processedTokens);
-       unSoldTokens.add(unSoldTokensLastRound);
+       require(currentRound < 6);
+       uint256 notSold = getUnsold();
+       unSoldTokens = unSoldTokens.add(notSold);
        processedTokens = capLevels[currentRound];
        currentRound = currentRound.add(1);
        currentRoundStart = now;
    }
+
+    function getUnsold() internal view returns (uint256) {
+        uint256 unSold = capLevels[currentRound].sub(processedTokens);
+        return unSold;
+    }
+
+    function checkUnsold() onlyOwner external view returns (uint256) {
+        uint256 unSold = capLevels[currentRound].sub(processedTokens);
+        return unSold;
+    }
 
     function round() public view returns(uint256) {
         return currentRound;
