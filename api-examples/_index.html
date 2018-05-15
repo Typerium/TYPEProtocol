@@ -24,7 +24,7 @@
               <a class="nav-link" href="api.html" target="_blank">Code &amp; Tutorial</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" target="_blank" href="https://ropsten.etherscan.io/address/0xabc32df8e6ce6f1f807192f62546d492b56873c7">Contract</a>
+              <a class="nav-link" target="_blank" href="https://ropsten.etherscan.io/address/0x81040d6aa0e642feea5e3ff420eb02b3781e66ff">Contract</a>
             </li>
           </ul>
         </nav>
@@ -34,8 +34,8 @@
       <div class="jumbotron">
         <h1 class="display-5">Typerium ICO Contract Address</h1>
         <br>
-        <p class="lead"><strong>0xabc32df8e6ce6f1f807192f62546d492b56873c7</strong></p>
-        <p>Send ether to <a href="https://ropsten.etherscan.io/address/0xabc32df8e6ce6f1f807192f62546d492b56873c7" target="_blank">contract address</a> in order to buy <a href="https://ropsten.etherscan.io/token/0x6979a9c4e260f51a22e54b798d6a91d59fd13054" target="_blank">TYPE tokens</a> (minimum 0.0001 ETH)</p>
+        <p class="lead"><strong>0x384EB0e4416179047B82092B8741805935b2fEd8</strong></p>
+        <p>Send ether to <a href="https://ropsten.etherscan.io/address/0x81040d6aa0e642feea5e3ff420eb02b3781e66ff" target="_blank">contract address</a> in order to buy <a href="https://ropsten.etherscan.io/token/0x6979a9c4e260f51a22e54b798d6a91d59fd13054" target="_blank">TYPE tokens</a> (minimum 0.0001 ETH)</p>
         <br>
         <h1 class="display-5">Total Raised</h1>
         <p class="lead"><strong id="raised">0</strong> ETH</p>
@@ -43,20 +43,11 @@
 
       <div class="row marketing">
         <div class="col-lg-6">
-          <h4>Current Price</h4>
+          <h4>Price</h4>
           <p>1 ETH = <span id="rate">0</span> TYPE</p>
-
-          <h4>Current Round</h4>
-          <p>Round #<span id="round">0</span></p>
 
           <h4>Current Bonus</h4>
           <p><span id="bonus">0</span>%</p>
-
-          <h4>Current Round Limit</h4>
-          <p><span id="round-limit">0</span> TYPE</p>
-
-          <h4>Current Round Start</h4>
-          <p><span id="start-time">0</span></p>
 
         </div>
 
@@ -64,17 +55,8 @@
           <h4>Tokens Sold</h4>
           <p><span id="sold">0</span> TYPE</p>
 
-          <h4>Tokens Available In Contract</h4>
+          <h4>Tokens Available</h4>
           <p><span id="available">0</span> TYPE</p>
-
-          <h4>Tokens Available This Round</h4>
-          <p><span id="available-this-round">0</span> TYPE</p>
-
-          <h4>Tokens Unsold</h4>
-          <p><span id="unsold">0</span> TYPE</p>
-
-          <h4>Current Round End</h4>
-          <p><span id="end-time">0</span></p>
 
         </div>
       </div>
@@ -86,13 +68,12 @@
     </div> <!-- /container -->
     <script language="javascript" type="text/javascript" src="web3.min.js"></script>
     <script language="javascript" type="text/javascript" src="config.js"></script>
-    <script language="javascript" type="text/javascript" src="moment.js"></script>
     <script>
         //connect to web-socket to have a web3-provider
         var web3 = new Web3(new Web3.providers.HttpProvider("https://ropsten.infura.io/M6z4fZW1F0INgQ5TGwGO"));
         //var web3 = new Web3(new Web3.providers.WebsocketProvider("wss://ropsten.infura.io/ws"));
         //address of crowdSale smart-contract
-        var contractAddress = '0xabc32df8e6ce6f1f807192f62546d492b56873c7';
+        var contractAddress = '0x81040d6aa0e642feea5e3ff420eb02b3781e66ff';
         //address of typeToken smart-contract
         var tokenAddress = '0x6979a9c4e260f51a22e54b798d6a91d59fd13054';
         //decimal configuration for ETH and TYPE tokens
@@ -106,31 +87,16 @@
         console.log(contractInstance.methods);
         console.log(tokenInstance.methods);
 
-        var decimalBackup = (10 ** tokenDecimals)
-
         //populating UI with values - let's go! sold tokens amount
         contractInstance.methods.soldTokens().call().then(function(amount) {
-          document.getElementById('sold').innerHTML = amount / decimalBackup;
-        });
-        //current round
-        contractInstance.methods.round().call().then(function(value) {
-          document.getElementById('round').innerHTML = value;
+          document.getElementById('sold').innerHTML = amount / (10 ** tokenDecimals);
         });
         //current bonus value
-        contractInstance.methods.currentBonusLevel().call().then(function(value) {
+        contractInstance.methods.bonus().call().then(function(value) {
           document.getElementById('bonus').innerHTML = value;
         });
-        //current bonus value
-        contractInstance.methods.capLevels(1).call().then(function(value) {
-          document.getElementById('round-limit').innerHTML = value / decimalBackup
-        });
-        //calculate how much tokens available this round
-        contractInstance.methods.capLevels(1).call().then(function(value) {
-          var sold = parseInt(document.getElementById('sold').innerHTML);
-          document.getElementById('available-this-round').innerHTML = (value - sold) / decimalBackup;
-        });
         //current rate per 1 ETH
-        contractInstance.methods.currentRateLevel().call().then(function(value) {
+        contractInstance.methods.rate().call().then(function(value) {
           document.getElementById('rate').innerHTML = value;
         });
         //amount of ETH raised so far
@@ -139,14 +105,8 @@
         });
         //checking balance of contract in order to see how many tokens still available
         tokenInstance.methods.balanceOf(contractAddress).call().then(function(amount) {
-          document.getElementById('available').innerHTML = amount / decimalBackup
+          document.getElementById('available').innerHTML = amount / (10 ** tokenDecimals);
         });
-        //current bonus value
-        contractInstance.methods.currentRoundStart().call().then(function(value) {
-          document.getElementById('start-time').innerHTML = moment.unix(value).format();
-          document.getElementById('end-time').innerHTML = moment.unix(value).add(7,'d').format();
-        });
-
     </script>
   </body>
 </html>

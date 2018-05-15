@@ -85,26 +85,6 @@ contract Crowdsale {
   // 150 million tokens sold
   uint256 public rate;
 
-  // The rate of tokens per ether. Only applied for the second round, at between
-  // 150 million tokens sold and 210 million tokens sold
-  uint256 public rateRound2;
-
-  // The rate of tokens per ether. Only applied for the third round, at between
-  // 210 million tokens sold and 255 million tokens sold
-  uint256 public rateRound3;
-
-  // The rate of tokens per ether. Only applied for the fourth round, at between
-  // 255 million tokens sold and 285 million tokens sold
-  uint256 public rateRound4;
-
-  // The rate of tokens per ether. Only applied for the fifth round, at between
-  // 285 million tokens sold and 300 million tokens sold
-  uint256 public rateRound5;
-
-  // The rate of tokens per ether. Only applied for the fifth round, at between
-  // 300 million tokens sold and 1 billion tokens sold
-  uint256 public rateRound6;
-
   // Amount of wei raised
   uint256 public weiRaised;
 
@@ -118,31 +98,13 @@ contract Crowdsale {
   bool public paused = false;
 
   // Minimal amount to exchange in ETH
-  uint minPurchase = 10 szabo;
+  uint256 minPurchase = 10 szabo;
 
   // Keeping track of current round
-  uint currentRound = 1;
-
-  // Amount of tokens for current round (default value rond11 150,000,000 TYPE)
-  uint256 public constant currentRoundLimit = 150000000E4;
+  uint256 currentRound;
 
   // We can only sell maximum total amount- 1,000,000,000 tokens during the ICO
   uint256 public constant maxTokensRaised = 1000000000E4;
-
-  // uint256 public constant round2Cap = 150000000E4;
-  uint256 public constant round1Max = 150000000E4;
-
-  // uint256 public constant round2Cap = 60000000E4;
-  uint256 public constant round2Max = 210000000E4;
-
-  // uint256 public constant round3Cap = 45000000E4;
-  uint256 public constant round3Max = 255000000E4;
-
-  // uint256 public constant round4Cap = 30000000E4;
-  uint256 public constant round4Max = 285000000E4;
-
-  // uint256 public constant round5Cap = 15000000E4;
-  uint256 public constant round5Max = 300000000E4;
 
   // Timestamp when the crowdsale starts 01/01/2018 @ 00:00am (UTC);
   uint256 public startTime = 1514764800;
@@ -167,6 +129,12 @@ contract Crowdsale {
 
   // Bonus levels per each round
   mapping (uint => uint) public bonusLevels;
+
+  // Rate levels per each round
+  mapping (uint => uint) public rateLevels;
+
+  // Cap levels per each round
+  mapping (uint => uint) public capLevels;
 
   /**
    * Event for token purchase logging
@@ -210,22 +178,35 @@ contract Crowdsale {
     bonusLevels[_bonusIndex] = _bonusValue;
   }
 
+  function setNewRateLevel (uint256 _rateIndex, uint256 _rateValue) onlyOwner external {
+    rateLevels[_rateIndex] = _rateValue;
+  }
+
   function setMinPurchase (uint _minPurchase) onlyOwner external {
     minPurchase = _minPurchase;
   }
 
    // @notice Set's the rate of tokens per ether for each round
-  function setNewRates (uint256 _r1, uint256 _r2, uint256 _r3, uint256 _r4, uint256 _r5, uint256 _r6) onlyOwner external {
+  function setNewRatesCustom (uint256 _r1, uint256 _r2, uint256 _r3, uint256 _r4, uint256 _r5, uint256 _r6) onlyOwner external {
     require(_r1 > 0 && _r2 > 0 && _r3 > 0 && _r4 > 0 && _r5 > 0 && _r6 > 0);
-
-      rate = _r1;
-      rateRound2 = _r2;
-      rateRound3 = _r3;
-      rateRound4 = _r4;
-      rateRound5 = _r5;
-      rateRound6 = _r6;
+    rateLevels[1] = _r1;
+    rateLevels[2] = _r2;
+    rateLevels[3] = _r3;
+    rateLevels[4] = _r4;
+    rateLevels[5] = _r5;
+    rateLevels[6] = _r6;
   }
 
+   // @notice Set's the rate of tokens per ether for each round
+  function setNewRatesBase (uint256 _r1) onlyOwner external {
+    require(_r1 > 0);
+    rateLevels[1] = _r1;
+    rateLevels[2] = _r1.div(2);
+    rateLevels[3] = _r1.div(3);
+    rateLevels[4] = _r1.div(4);
+    rateLevels[5] = _r1.div(5);
+    rateLevels[6] = _r1.div(6);
+  }
 
   /**
    * @param _rate Number of token units a buyer gets per ETH
@@ -238,10 +219,12 @@ contract Crowdsale {
     require(_wallet != address(0));
     require(_token != address(0));
 
-    rate = _rate;
     wallet = _wallet;
     token = _token;
     owner = _owner;
+
+    unSoldTokens = 0;
+    currentRound = 1;
 
     //bonus values per each round;
     bonusLevels[1] =  5;
@@ -249,6 +232,22 @@ contract Crowdsale {
     bonusLevels[3] = 15;
     bonusLevels[4] = 20;
     bonusLevels[5] = 50;
+
+    //rate values per each round;
+    rateLevels[1] = _rate;
+    rateLevels[2] = _rate.div(2);
+    rateLevels[3] = _rate.div(3);
+    rateLevels[4] = _rate.div(4);
+    rateLevels[5] = _rate.div(5);
+    rateLevels[6] = _rate.div(6);
+
+    //cap values per each round
+    capLevels[1] = 150000000E4;
+    capLevels[2] = 210000000E4;
+    capLevels[3] = 255000000E4;
+    capLevels[4] = 285000000E4;
+    capLevels[5] = 300000000E4;
+    capLevels[6] = maxTokensRaised;
 
   }
 
@@ -272,64 +271,68 @@ contract Crowdsale {
     uint256 tokens = 0;
     uint256 bonusTokens = 0;
 
-    if(soldTokens < round1Max) {
+    if(soldTokens < capLevels[1]) {
 
         tokens = _getTokensAmount(amountPaid, 1);
         bonusTokens = _getBonusAmount(tokens, 1);
 
         // If the amount of tokens that you want to buy gets out of round 1
-        if(soldTokens.add(tokens) > round1Max) {
+        if(soldTokens.add(tokens) > capLevels[1]) {
             setCurrentRound(2);
-            tokens = _calculateExcessTokens(amountPaid, round1Max, 1, rate);
+            tokens = _calculateExcessTokens(amountPaid, 1);
             bonusTokens = _calculateExcessBonus(tokens, 2);
         }
 
     // Round 2
-    } else if(soldTokens >= round1Max && soldTokens < round2Max) {
+    } else if(soldTokens >= capLevels[1] && soldTokens < capLevels[2]) {
         tokens = _getTokensAmount(amountPaid, 2);
+        bonusTokens = _getBonusAmount(tokens, 2);
 
         // If the amount of tokens that you want to buy gets out of round 2
-        if(soldTokens.add(tokens) > round2Max) {
+        if(soldTokens.add(tokens) > capLevels[2]) {
             setCurrentRound(3);
-            tokens = _calculateExcessTokens(amountPaid, round2Max, 2, rateRound2);
+            tokens = _calculateExcessTokens(amountPaid, 2);
             bonusTokens = _calculateExcessBonus(tokens, 3);
         }
 
     // Round 3
-    } else if(soldTokens >= round2Max && soldTokens < round3Max) {
+    } else if(soldTokens >= capLevels[2] && soldTokens < capLevels[3]) {
          tokens = _getTokensAmount(amountPaid, 3);
+         bonusTokens = _getBonusAmount(tokens, 3);
 
          // If the amount of tokens that you want to buy gets out of round 3
-         if(soldTokens.add(tokens) > round3Max) {
+         if(soldTokens.add(tokens) > capLevels[3]) {
             setCurrentRound(4);
-            tokens = _calculateExcessTokens(amountPaid, round3Max, 3, rateRound3);
+            tokens = _calculateExcessTokens(amountPaid, 3);
             bonusTokens = _calculateExcessBonus(tokens, 4);
          }
 
     // Round 4
-    } else if(soldTokens >= round3Max && soldTokens < round4Max) {
+    } else if(soldTokens >= capLevels[3] && soldTokens < capLevels[4]) {
          tokens = _getTokensAmount(amountPaid, 4);
+         bonusTokens = _getBonusAmount(tokens, 4);
 
          // If the amount of tokens that you want to buy gets out of round 4
-         if(soldTokens.add(tokens) > round4Max) {
+         if(soldTokens.add(tokens) > capLevels[4]) {
             setCurrentRound(5);
-            tokens = _calculateExcessTokens(amountPaid, round4Max, 4, rateRound4);
+            tokens = _calculateExcessTokens(amountPaid, 4);
             bonusTokens = _calculateExcessBonus(tokens, 5);
          }
 
     // Round 5
-    } else if(soldTokens >= round4Max && soldTokens < round5Max) {
+    } else if(soldTokens >= capLevels[4] && soldTokens < capLevels[5]) {
          tokens = _getTokensAmount(amountPaid, 5);
+         bonusTokens = _getBonusAmount(tokens, 5);
 
          // If the amount of tokens that you want to buy gets out of round 5
-         if(soldTokens.add(tokens) > round5Max) {
+         if(soldTokens.add(tokens) > capLevels[5]) {
             setCurrentRound(6);
-            tokens = _calculateExcessTokens(amountPaid, round4Max, 5, rateRound5);
+            tokens = _calculateExcessTokens(amountPaid, 5);
             bonusTokens = 0;
          }
 
     // Round 6
-    } else if(soldTokens >= round5Max) {
+    } else if(soldTokens >= capLevels[5]) {
         tokens = _getTokensAmount(amountPaid, 6);
     }
 
@@ -415,20 +418,19 @@ contract Crowdsale {
 
     function _calculateExcessBonus(uint256 tokens, uint256 level) internal view returns (uint256 totalBonus) {
         uint256 thisLevelTokens = soldTokens.add(tokens);
-        uint256 nextLevelTokens = thisLevelTokens.sub(round1Max);
+        uint256 nextLevelTokens = thisLevelTokens.sub(capLevels[level]);
         totalBonus = _getBonusAmount(nextLevelTokens, level);
     }
 
    function _calculateExcessTokens(
       uint256 amount,
-      uint256 tokensThisRound,
-      uint256 roundSelected,
-      uint256 _rate
+      uint256 roundSelected
    ) public returns(uint256 totalTokens) {
-      require(amount > 0 && tokensThisRound > 0 && _rate > 0);
+      require(amount > 0);
       require(roundSelected >= 1 && roundSelected <= 6);
 
-      uint weiThisRound = tokensThisRound.sub(soldTokens).div(_rate);
+      uint _rate = rateLevels[roundSelected];
+      uint weiThisRound = capLevels[roundSelected].sub(soldTokens).div(_rate);
       uint weiNextRound = amount.sub(weiThisRound);
       uint tokensNextRound = 0;
 
@@ -439,7 +441,7 @@ contract Crowdsale {
       else
          msg.sender.transfer(weiNextRound);
 
-      totalTokens = tokensThisRound.sub(soldTokens).add(tokensNextRound);
+      totalTokens = capLevels[roundSelected].sub(soldTokens).add(tokensNextRound);
    }
 
 
@@ -449,19 +451,8 @@ contract Crowdsale {
       require(weiPaid > 0);
       require(roundSelected >= 1 && roundSelected <= 6);
       uint typeTokenWei = weiPaid.div(1E14);
+      calculatedTokens = typeTokenWei.mul(rateLevels[roundSelected]);
 
-      if(roundSelected == 1)
-         calculatedTokens = typeTokenWei.mul(rate);
-      else if(roundSelected == 2)
-         calculatedTokens = typeTokenWei.mul(rateRound2);
-      else if(roundSelected == 3)
-         calculatedTokens = typeTokenWei.mul(rateRound3);
-      else if(roundSelected == 4)
-         calculatedTokens = typeTokenWei.mul(rateRound4);
-      else if(roundSelected == 5)
-         calculatedTokens = typeTokenWei.mul(rateRound5);
-      else
-         calculatedTokens = typeTokenWei.mul(rateRound6);
    }
 
   // -----------------------------------------
@@ -498,37 +489,29 @@ contract Crowdsale {
         currentRoundStart = now;
     }
 
-
     //move to next round by overwriting soldTokens value, unsold tokens will be burned;
    function goNextRound() onlyOwner external {
-       uint256 nextRound = currentRound.add(1);
        uint256 unSoldTokensLastRound;
-       setCurrentRound(nextRound);
-        if(currentRound == 2) {
-            unSoldTokensLastRound = round1Max.sub(soldTokens);
-            unSoldTokens.add(unSoldTokensLastRound);
-            soldTokens = round1Max;
-       } else if(currentRound == 3) {
-            unSoldTokensLastRound = round2Max.sub(soldTokens);
-            unSoldTokens.add(unSoldTokensLastRound);
-           soldTokens = round2Max;
-       } else if(currentRound == 4) {
-            unSoldTokensLastRound = round3Max.sub(soldTokens);
-            unSoldTokens.add(unSoldTokensLastRound);
-           soldTokens = round3Max;
-       } else if(currentRound == 5) {
-            unSoldTokensLastRound = round4Max.sub(soldTokens);
-            unSoldTokens.add(unSoldTokensLastRound);
-           soldTokens = round4Max;
-       } else if(currentRound == 6) {
-            unSoldTokensLastRound = round5Max.sub(soldTokens);
-            unSoldTokens.add(unSoldTokensLastRound);
-           soldTokens = round5Max;
-       }
+       unSoldTokensLastRound = capLevels[currentRound].sub(soldTokens);
+       unSoldTokens.add(unSoldTokensLastRound);
+       soldTokens = capLevels[currentRound];
+       currentRound = currentRound.add(1);
+       currentRoundStart = now;
    }
+
+    function round() public view returns(uint256) {
+        return currentRound;
+    }
 
     function currentBonusLevel() public view returns(uint256) {
         return bonusLevels[currentRound];
     }
 
+    function currentRateLevel() public view returns(uint256) {
+        return rateLevels[currentRound];
+    }
+
+    function currentCapLevel() public view returns(uint256) {
+        return capLevels[currentRound];
+    }
 }
