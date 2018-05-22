@@ -100,6 +100,9 @@ contract Crowdsale {
   // Amount of locked tokens
   uint256 public lockedTokens;
 
+  // Amount of alocated tokens
+  uint256 public allocatedTokens;
+
   // Amount of distributed tokens
   uint256 public distributedTokens;
 
@@ -107,10 +110,10 @@ contract Crowdsale {
   bool public paused = false;
 
   // Minimal amount to exchange in ETH
-  uint256 minPurchase = 10 szabo;
+  uint256 public minPurchase = 10 szabo;
 
   // Keeping track of current round
-  uint256 currentRound;
+  uint256 public currentRound;
 
   // We can only sell maximum total amount- 1,000,000,000 tokens during the ICO
   uint256 public constant maxTokensRaised = 1000000000E4;
@@ -127,6 +130,9 @@ contract Crowdsale {
   // Timestamp when locked tokens become unlocked 21/09/2018 @ 00:00am (UTC);
   uint256 public lockedTill = 1537488000;
 
+  // Timestamp when approved tokens become available 21/09/2018 @ 00:00am (UTC);
+  uint256 public approvedTill = 1537488000;
+
   // How much each user paid for the crowdsale
   mapping(address => uint256) public crowdsaleBalances;
 
@@ -139,6 +145,12 @@ contract Crowdsale {
   // How many tokens each user got locked
   mapping(address => uint256) public lockedBalances;
 
+  // How many tokens each user got pre-delivered
+  mapping(address => uint256) public allocatedBalances;
+
+  // If user is approved to withdraw tokens
+  mapping(address => bool) public approved;
+
   // How many tokens each user got distributed
   mapping(address => uint256) public distributedBalances;
 
@@ -150,6 +162,9 @@ contract Crowdsale {
 
   // Cap levels per each round
   mapping (uint256 => uint256) public capLevels;
+
+  // To track list of contributors
+  address[] public allocatedAddresses;
 
 
   /**
@@ -221,7 +236,7 @@ contract Crowdsale {
     rateLevels[3] = _r1.div(3);
     rateLevels[4] = _r1.div(4);
     rateLevels[5] = _r1.div(5);
-    rateLevels[6] = _r1.div(6);
+    rateLevels[6] = _r1.div(5);
   }
 
   /**
@@ -254,6 +269,7 @@ contract Crowdsale {
     bonusLevels[3] = 15;
     bonusLevels[4] = 20;
     bonusLevels[5] = 50;
+    bonusLevels[6] = 0;
 
     //rate values per each round;
     rateLevels[1] = _rate;
@@ -261,7 +277,7 @@ contract Crowdsale {
     rateLevels[3] = _rate.div(3);
     rateLevels[4] = _rate.div(4);
     rateLevels[5] = _rate.div(5);
-    rateLevels[6] = _rate.div(6);
+    rateLevels[6] = _rate.div(5);
 
     //cap values per each round
     capLevels[1] = 150000000E4;
@@ -418,23 +434,30 @@ contract Crowdsale {
    * @param _tokenAmount Number of tokens to be purchased
    */
   function _processPurchase(address _beneficiary, uint256 _tokenAmount) internal {
-    uint256 _tokensToDeliver = _tokenAmount.div(2);
-    uint256 _tokensToLock = _tokenAmount.sub(_tokensToDeliver);
-    _deliverTokens(_beneficiary, _tokensToDeliver);
+    uint256 _tokensToPreAllocate = _tokenAmount.div(2);
+    uint256 _tokensToLock = _tokenAmount.sub(_tokensToPreAllocate);
+
+    //record address for future distribution
+    allocatedAddresses.push(_beneficiary);
+
+    //pre allocate 50% of purchase for delivery in 30 days
+    _preAllocateTokens(_beneficiary, _tokensToPreAllocate);
+
+    //lock 50% of purchase for delivery after 4 months
     _lockTokens(_beneficiary, _tokensToLock);
 
-    distributedBalances[_beneficiary] = distributedBalances[_beneficiary].add(_tokensToDeliver);
-  }
-
-
-  function _deliverTokens(address _beneficiary, uint256 _tokenAmount) internal {
-    token.transfer(_beneficiary, _tokenAmount);
-    distributedTokens = distributedTokens.add(_tokenAmount);
+    //approve by default (dissaprove manually)
+    approved[_beneficiary] = true;
   }
 
   function _lockTokens(address _beneficiary, uint256 _tokenAmount) internal {
     lockedBalances[_beneficiary] = lockedBalances[_beneficiary].add(_tokenAmount);
     lockedTokens = lockedTokens.add(_tokenAmount);
+  }
+
+  function _preAllocateTokens(address _beneficiary, uint256 _tokenAmount) internal {
+    allocatedBalances[_beneficiary] = allocatedBalances[_beneficiary].add(_tokenAmount);
+    allocatedTokens = allocatedTokens.add(_tokenAmount);
   }
 
   /**
@@ -502,7 +525,13 @@ contract Crowdsale {
   }
 
    function _changeLockDate(uint256 _newDate) onlyOwner external {
+    require(_newDate <= endTime.add(36 weeks));
     lockedTill = _newDate;
+  }
+
+   function _changeApproveDate(uint256 _newDate) onlyOwner external {
+    require(_newDate <= endTime.add(12 weeks));
+    approvedTill = _newDate;
   }
 
   function changeWallet(address _newWallet) onlyOwner external {
@@ -560,14 +589,64 @@ contract Crowdsale {
         return capLevels[currentRound];
     }
 
+    function changeApproval(address _beneficiary, bool _newStatus) onlyOwner public {
+        approved[_beneficiary] = _newStatus;
+    }
+
+    function massApproval(bool _newStatus) onlyOwner public {
+        for (uint256 i = 0; i < allocatedAddresses.length; i++) {
+            approved[allocatedAddresses[i]] = _newStatus;
+        }
+    }
+
+    function autoTransferApproved() onlyOwner public {
+        for (uint256 i = 0; i < allocatedAddresses.length; i++) {
+            transferApprovedBalance(allocatedAddresses[i]);
+        }
+    }
+
+    function autoTransferLocked() onlyOwner public {
+        for (uint256 i = 0; i < allocatedAddresses.length; i++) {
+            transferLockedBalance(allocatedAddresses[i]);
+        }
+    }
+
+    function transferApprovedBalance(address _beneficiary) public {
+        require(_beneficiary != address(0));
+        require(now >= approvedTill);
+        require(allocatedTokens > 0);
+        require(approved[_beneficiary]);
+        require(allocatedBalances[_beneficiary] > 0);
+
+        uint256 _approvedTokensToTransfer = allocatedBalances[_beneficiary];
+        token.transfer(_beneficiary, _approvedTokensToTransfer);
+        distributedBalances[_beneficiary] = distributedBalances[_beneficiary].add(_approvedTokensToTransfer);
+        allocatedTokens.sub(_approvedTokensToTransfer);
+        allocatedBalances[_beneficiary] = 0;
+        distributedTokens = distributedTokens.add(_approvedTokensToTransfer);
+    }
+
     function transferLockedBalance(address _beneficiary) public {
         require(_beneficiary != address(0));
         require(now >= lockedTill);
         require(lockedTokens > 0);
+        require(approved[_beneficiary]);
+        require(lockedBalances[_beneficiary] > 0);
+
         uint256 _lockedTokensToTransfer = lockedBalances[_beneficiary];
         token.transfer(_beneficiary, _lockedTokensToTransfer);
         distributedBalances[_beneficiary] = distributedBalances[_beneficiary].add(_lockedTokensToTransfer);
         lockedTokens.sub(_lockedTokensToTransfer);
+        lockedBalances[_beneficiary] = 0;
+        distributedTokens = distributedTokens.add(_lockedTokensToTransfer);
+    }
+
+    function transferToken(uint256 _tokens) external onlyOwner returns (bool success) {
+        return token.transfer(owner, _tokens);
+    }
+
+    function tokenBalance() public view returns (uint256) {
+        return token.balanceOf(address(this));
     }
 
 }

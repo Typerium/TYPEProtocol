@@ -24,7 +24,7 @@
               <a class="nav-link" href="api.html" target="_blank">Code &amp; Tutorial</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" target="_blank" href="https://ropsten.etherscan.io/address/0xe89ac4b707f1d9aa81c6d5eac17f700752a7f4dd">Contract</a>
+              <a class="nav-link" target="_blank" href="https://ropsten.etherscan.io/address/0xc728b3b532415c948fdde81867a8a290138c2fa0">Contract</a>
             </li>
           </ul>
         </nav>
@@ -34,8 +34,8 @@
       <div class="jumbotron">
         <h1 class="display-5">Typerium ICO Contract Address</h1>
         <br>
-        <p class="lead"><strong>0xe89ac4b707f1d9aa81c6d5eac17f700752a7f4dd</strong></p>
-        <p>Send ether to <a href="https://ropsten.etherscan.io/address/0xe89ac4b707f1d9aa81c6d5eac17f700752a7f4dd" target="_blank">contract address</a> in order to buy <a href="https://ropsten.etherscan.io/token/0x6979a9c4e260f51a22e54b798d6a91d59fd13054" target="_blank">TYPE tokens</a> (minimum 0.0001 ETH)</p>
+        <p class="lead"><strong>0xc728b3b532415c948fdde81867a8a290138c2fa0</strong></p>
+        <p>Send ether to <a href="https://ropsten.etherscan.io/address/0xc728b3b532415c948fdde81867a8a290138c2fa0" target="_blank">contract address</a> in order to buy <a href="https://ropsten.etherscan.io/token/0x6979a9c4e260f51a22e54b798d6a91d59fd13054" target="_blank">TYPE tokens</a> (minimum 0.0001 ETH)</p>
         <br>
         <h1 class="display-5">Total Raised</h1>
         <p class="lead"><strong id="raised">0</strong> ETH</p>
@@ -61,6 +61,9 @@
           <h4>Current Round End</h4>
           <p><span id="end-time">0</span></p>
 
+          <h4>Currently Allocated Tokens</h4>
+          <p><span id="alloc-tokens">0</span></p>
+
         </div>
 
         <div class="col-lg-6">
@@ -81,6 +84,9 @@
 
           <h4>Tokens Unlock Date</h4>
           <p><span id="unlocked">0</span></p>
+
+          <h4>Tokens Allocate Date</h4>
+          <p><span id="allocate">0</span></p>
         </div>
       </div>
 
@@ -102,11 +108,9 @@
         var etherDecimals = 18;
         //making contract instance to call available methods
         var contractInstance = new web3.eth.Contract(crowdSaleAbi, contractAddress);
-        var tokenInstance = new web3.eth.Contract(tokenAbi, tokenAddress);
 
         //checking avaialable methods
         console.log(contractInstance.methods);
-        console.log(tokenInstance.methods);
 
         var decimals= (10 ** tokenDecimals)
         var sold = 0;
@@ -147,6 +151,10 @@
         contractInstance.methods.distributedTokens().call().then(function(amount) {
           document.getElementById('distributed').innerHTML = amount / decimals
         });
+        //how many tokens been transfered/distributed from contract to seller, not including locked tokens
+        contractInstance.methods.allocatedTokens().call().then(function(amount) {
+          document.getElementById('alloc-tokens').innerHTML = amount / decimals
+        });
         //when the round starts/ends
         contractInstance.methods.currentRoundStart().call().then(function(value) {
           document.getElementById('start-time').innerHTML = moment.unix(value).format();
@@ -155,6 +163,10 @@
         //when unlock date is
         contractInstance.methods.lockedTill().call().then(function(value) {
           document.getElementById('unlocked').innerHTML = moment.unix(value).format();
+        });
+        //when allocate date is
+        contractInstance.methods.approvedTill().call().then(function(value) {
+          document.getElementById('allocate').innerHTML = moment.unix(value).format();
         });
         //unsold tokens being added after each round closes
         contractInstance.methods.unSoldTokens().call().then(function(amount) {

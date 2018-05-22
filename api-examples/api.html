@@ -9,7 +9,6 @@
 var web3 = new Web3(new Web3.providers.HttpProvider(apiURL));
 
 var contractInstance = new web3.eth.Contract(crowdSaleAbi, contractAddress);
-var tokenInstance = new web3.eth.Contract(tokenAbi, tokenAddress);
 
 var tokenDecimals = 4;
 var etherDecimals = 18;
