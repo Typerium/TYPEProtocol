@@ -24,7 +24,7 @@
               <a class="nav-link" href="api.html" target="_blank">Code &amp; Tutorial</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" target="_blank" href="https://ropsten.etherscan.io/address/0x89a7ab836ee010601b6101b40de77cf8ba915003">Contract</a>
+              <a class="nav-link" target="_blank" href="https://ropsten.etherscan.io/address/0xdf47097bea52edcb0cadc1f6494b822317e78100">Contract</a>
             </li>
           </ul>
         </nav>
@@ -34,8 +34,8 @@
       <div class="jumbotron">
         <h1 class="display-5">Typerium ICO Contract Address</h1>
         <br>
-        <p class="lead"><strong>0x89a7ab836ee010601b6101b40de77cf8ba915003</strong></p>
-        <p>Send ether to <a href="https://ropsten.etherscan.io/address/0x89a7ab836ee010601b6101b40de77cf8ba915003" target="_blank">contract address</a> in order to buy <a href="https://ropsten.etherscan.io/token/0x6979a9c4e260f51a22e54b798d6a91d59fd13054" target="_blank">TYPE tokens</a> (minimum 0.0001 ETH)</p>
+        <p class="lead"><strong>0xdf47097bea52edcb0cadc1f6494b822317e78100</strong></p>
+        <p>Send ether to <a href="https://ropsten.etherscan.io/address/0xdf47097bea52edcb0cadc1f6494b822317e78100" target="_blank">contract address</a> in order to buy <a href="https://ropsten.etherscan.io/token/0x6979a9c4e260f51a22e54b798d6a91d59fd13054" target="_blank">TYPE tokens</a> (minimum 0.0001 ETH)</p>
         <br>
         <h1 class="display-5">Total Raised</h1>
         <p class="lead"><strong id="raised">0</strong> ETH</p>
@@ -95,81 +95,91 @@
       </footer>
 
     </div> <!-- /container -->
-    <script language="javascript" type="text/javascript" src="web3.min.js"></script>
     <script language="javascript" type="text/javascript" src="config.js"></script>
     <script language="javascript" type="text/javascript" src="moment.js"></script>
+    <script src="https://cdn.rawgit.com/ethereum/web3.js/0.19.0/dist/web3.js"></script>
     <script>
         //connect to web-socket to have a web3-provider
-        var web3 = new Web3(new Web3.providers.HttpProvider(apiURL));
-        //var web3 = new Web3(new Web3.providers.WebsocketProvider("wss://ropsten.infura.io/ws"));
+
+        var adminContract = web3.eth.contract(crowdSaleAbi);
+
+        // initiate contract for an address
+        var contractInstance = adminContract.at(contractAddress);
+
 
         //decimal configuration for ETH and TYPE tokens
         var tokenDecimals = 4;
         var etherDecimals = 18;
         //making contract instance to call available methods
-        var contractInstance = new web3.eth.Contract(crowdSaleAbi, contractAddress);
 
         //checking avaialable methods
-        console.log(contractInstance.methods);
+        console.log(contractInstance);
 
         var decimals= (10 ** tokenDecimals)
         var sold = 0;
 
         //populating UI with values - let's go! sold tokens amount
-        contractInstance.methods.soldTokens().call().then(function(amount) {
+        contractInstance.soldTokens(function(amount) {
           document.getElementById('sold').innerHTML = amount / decimals;
           sold = amount; //save for future computation
         });
         //amount of tokens being held in contract as locked (for distribution after 4 months)
-        contractInstance.methods.lockedTokens().call().then(function(amount) {
+        contractInstance.lockedTokens(function(amount) {
           document.getElementById('locked').innerHTML = amount / decimals;
         });
         //current round value
-        contractInstance.methods.round().call().then(function(value) {
+        contractInstance.round(function(value) {
           document.getElementById('round').innerHTML = value;
         });
         //current bonus value
-        contractInstance.methods.currentBonusLevel().call().then(function(value) {
+        contractInstance.currentBonusLevel(function(value) {
           document.getElementById('bonus').innerHTML = value;
         });
         //current round available tokens
-        contractInstance.methods.currentCapLevel().call().then(function(todo) {
-            contractInstance.methods.processedTokens().call().then(function(done) {
+        /*contractInstance.currentCapLevel().call().then(function(todo) {
+            contractInstance.processedTokens().call().then(function(done) {
               document.getElementById('round-limit').innerHTML = todo / decimals
               document.getElementById('available-this-round').innerHTML = (todo - done) / decimals;
           });
-        });
+        });*/
+
         //current round rate per 1 ETH
-        contractInstance.methods.currentRateLevel().call().then(function(value) {
+        contractInstance.currentRateLevel(function(value) {
           document.getElementById('rate').innerHTML = value;
         });
+
         //amount of ETH raised so far
-        contractInstance.methods.weiRaised().call().then(function(amount) {
+        contractInstance.weiRaised(function(amount) {
           document.getElementById('raised').innerHTML = amount / (10 ** etherDecimals);
         });
+
         //how many tokens been transfered/distributed from contract to seller, not including locked tokens
-        contractInstance.methods.distributedTokens().call().then(function(amount) {
+        contractInstance.distributedTokens(function(amount) {
           document.getElementById('distributed').innerHTML = amount / decimals
         });
+
         //how many tokens been transfered/distributed from contract to seller, not including locked tokens
-        contractInstance.methods.allocatedTokens().call().then(function(amount) {
+        contractInstance.allocatedTokens(function(amount) {
+          console.log(amount);
           document.getElementById('alloc-tokens').innerHTML = amount / decimals
         });
+
         //when the round starts/ends
-        contractInstance.methods.currentRoundStart().call().then(function(value) {
+        contractInstance.currentRoundStart(function(value) {
           document.getElementById('start-time').innerHTML = moment.unix(value).format();
           document.getElementById('end-time').innerHTML = moment.unix(value).add(7,'d').format();
         });
         //when unlock date is
-        contractInstance.methods.lockedTill().call().then(function(value) {
+        contractInstance.lockedTill(function(value) {
           document.getElementById('unlocked').innerHTML = moment.unix(value).format();
         });
         //when allocate date is
-        contractInstance.methods.approvedTill().call().then(function(value) {
+        contractInstance.approvedTill(function(value) {
           document.getElementById('allocate').innerHTML = moment.unix(value).format();
         });
+
         //unsold tokens being added after each round closes
-        contractInstance.methods.unSoldTokens().call().then(function(amount) {
+        contractInstance.unSoldTokens(function(amount) {
           document.getElementById('unsold').innerHTML = amount / decimals;
           sold = amount; //save for future computation
         });

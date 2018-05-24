@@ -110,7 +110,7 @@ contract Crowdsale {
   bool public paused = false;
 
   // Minimal amount to exchange in ETH
-  uint256 public minPurchase = 10 szabo;
+  uint256 public minPurchase = 1 finney;
 
   // Keeping track of current round
   uint256 public currentRound;
@@ -119,7 +119,7 @@ contract Crowdsale {
   uint256 public constant maxTokensRaised = 1000000000E4;
 
   // Timestamp when the crowdsale starts 01/01/2018 @ 00:00am (UTC);
-  uint256 public startTime = 1514764800;
+  uint256 public startTime = now;
 
   // Timestamp when the initial round ends (UTC);
   uint256 public currentRoundStart = startTime;
@@ -308,65 +308,72 @@ contract Crowdsale {
 
     uint256 tokens = 0;
     uint256 bonusTokens = 0;
+    uint256 fullTokens = 0;
 
+    // Round 1
     if(processedTokens < capLevels[1]) {
 
         tokens = _getTokensAmount(amountPaid, 1);
         bonusTokens = _getBonusAmount(tokens, 1);
+        fullTokens = tokens.add(bonusTokens);
 
         // If the amount of tokens that you want to buy gets out of round 1
-        if(processedTokens.add(tokens) > capLevels[1]) {
-            setCurrentRound(2);
+        if(processedTokens.add(fullTokens) > capLevels[1]) {
             tokens = _calculateExcessTokens(amountPaid, 1);
-            bonusTokens = _calculateExcessBonus(tokens, 2);
+            bonusTokens = _calculateExcessBonus(tokens, 1);
+            setCurrentRound(2);
         }
 
     // Round 2
     } else if(processedTokens >= capLevels[1] && processedTokens < capLevels[2]) {
         tokens = _getTokensAmount(amountPaid, 2);
         bonusTokens = _getBonusAmount(tokens, 2);
+        fullTokens = tokens.add(bonusTokens);
 
         // If the amount of tokens that you want to buy gets out of round 2
-        if(processedTokens.add(tokens) > capLevels[2]) {
-            setCurrentRound(3);
+        if(processedTokens.add(fullTokens) > capLevels[2]) {
             tokens = _calculateExcessTokens(amountPaid, 2);
-            bonusTokens = _calculateExcessBonus(tokens, 3);
+            bonusTokens = _calculateExcessBonus(tokens, 2);
+            setCurrentRound(3);
         }
 
     // Round 3
     } else if(processedTokens >= capLevels[2] && processedTokens < capLevels[3]) {
          tokens = _getTokensAmount(amountPaid, 3);
          bonusTokens = _getBonusAmount(tokens, 3);
+         fullTokens = tokens.add(bonusTokens);
 
          // If the amount of tokens that you want to buy gets out of round 3
-         if(processedTokens.add(tokens) > capLevels[3]) {
-            setCurrentRound(4);
+         if(processedTokens.add(fullTokens) > capLevels[3]) {
             tokens = _calculateExcessTokens(amountPaid, 3);
-            bonusTokens = _calculateExcessBonus(tokens, 4);
+            bonusTokens = _calculateExcessBonus(tokens, 3);
+            setCurrentRound(4);
          }
 
     // Round 4
     } else if(processedTokens >= capLevels[3] && processedTokens < capLevels[4]) {
          tokens = _getTokensAmount(amountPaid, 4);
          bonusTokens = _getBonusAmount(tokens, 4);
+         fullTokens = tokens.add(bonusTokens);
 
          // If the amount of tokens that you want to buy gets out of round 4
-         if(processedTokens.add(tokens) > capLevels[4]) {
-            setCurrentRound(5);
+         if(processedTokens.add(fullTokens) > capLevels[4]) {
             tokens = _calculateExcessTokens(amountPaid, 4);
-            bonusTokens = _calculateExcessBonus(tokens, 5);
+            bonusTokens = _calculateExcessBonus(tokens, 4);
+            setCurrentRound(5);
          }
 
     // Round 5
     } else if(processedTokens >= capLevels[4] && processedTokens < capLevels[5]) {
          tokens = _getTokensAmount(amountPaid, 5);
          bonusTokens = _getBonusAmount(tokens, 5);
+         fullTokens = tokens.add(bonusTokens);
 
          // If the amount of tokens that you want to buy gets out of round 5
-         if(processedTokens.add(tokens) > capLevels[5]) {
-            setCurrentRound(6);
+         if(processedTokens.add(fullTokens) > capLevels[5]) {
             tokens = _calculateExcessTokens(amountPaid, 5);
             bonusTokens = 0;
+            setCurrentRound(6);
          }
 
     // Round 6
@@ -376,9 +383,9 @@ contract Crowdsale {
 
     // update state
     weiRaised = weiRaised.add(amountPaid);
-    soldTokens = soldTokens.add(tokens);
-    soldTokens = soldTokens.add(bonusTokens);
-    processedTokens = processedTokens.add(soldTokens);
+    fullTokens = tokens.add(bonusTokens);
+    soldTokens = soldTokens.add(fullTokens);
+    processedTokens = processedTokens.add(fullTokens);
 
     // Keep a record of how many tokens everybody gets in case we need to do refunds
     tokensBought[msg.sender] = tokensBought[msg.sender].add(tokens);
@@ -470,32 +477,37 @@ contract Crowdsale {
     return bonusValue.div(100);
   }
 
-    function _calculateExcessBonus(uint256 tokens, uint256 level) internal view returns (uint256 totalBonus) {
-        uint256 thisLevelTokens = processedTokens.add(tokens);
-        uint256 nextLevelTokens = thisLevelTokens.sub(capLevels[level]);
-        totalBonus = _getBonusAmount(nextLevelTokens, level);
+    function _calculateExcessBonus(uint256 _tokens, uint256 _level) internal view returns (uint256) {
+        uint256 thisLevelTokens = processedTokens.add(_tokens);
+        uint256 nextLevelTokens = thisLevelTokens.sub(capLevels[_level]);
+        uint256 totalBonus = _getBonusAmount(nextLevelTokens, _level.add(1));
+        return totalBonus;
     }
 
    function _calculateExcessTokens(
       uint256 amount,
       uint256 roundSelected
-   ) public returns(uint256 totalTokens) {
+   ) internal returns(uint256) {
       require(amount > 0);
       require(roundSelected >= 1 && roundSelected <= 6);
 
       uint256 _rate = rateLevels[roundSelected];
-      uint256 weiThisRound = capLevels[roundSelected].sub(processedTokens).div(_rate);
+      uint256 _leftTokens = capLevels[roundSelected].sub(processedTokens);
+      uint256 weiThisRound = _leftTokens.div(_rate).mul(1E14);
       uint256 weiNextRound = amount.sub(weiThisRound);
       uint256 tokensNextRound = 0;
 
       // If there's excessive wei for the last tier, refund those
+      uint256 nextRound = roundSelected.add(1);
       if(roundSelected != 6) {
-        tokensNextRound = _getTokensAmount(weiNextRound, roundSelected.add(1));
+        tokensNextRound = _getTokensAmount(weiNextRound, nextRound);
       }
-      else
+      else {
          msg.sender.transfer(weiNextRound);
+      }
 
-      totalTokens = capLevels[roundSelected].sub(processedTokens).add(tokensNextRound);
+      uint256 totalTokens = _leftTokens.add(tokensNextRound);
+      return totalTokens;
    }
 
 
@@ -518,6 +530,7 @@ contract Crowdsale {
    */
   function _withdrawAllFunds() onlyOwner external {
     wallet.transfer(weiRaised);
+    weiRaised = 0;
   }
 
   function _withdrawWei(uint256 _amount) onlyOwner external {
@@ -593,20 +606,29 @@ contract Crowdsale {
         approved[_beneficiary] = _newStatus;
     }
 
-    function massApproval(bool _newStatus) onlyOwner public {
-        for (uint256 i = 0; i < allocatedAddresses.length; i++) {
+    function massApproval(bool _newStatus, uint256 _start, uint256 _end) onlyOwner public {
+        require(_start >= 0);
+        require(_end > 0);
+        require(_end > _start);
+        for (uint256 i = _start; i < _end; i++) {
             approved[allocatedAddresses[i]] = _newStatus;
         }
     }
 
-    function autoTransferApproved() onlyOwner public {
-        for (uint256 i = 0; i < allocatedAddresses.length; i++) {
+    function autoTransferApproved(uint256 _start, uint256 _end) onlyOwner public {
+        require(_start >= 0);
+        require(_end > 0);
+        require(_end > _start);
+        for (uint256 i = _start; i < _end; i++) {
             transferApprovedBalance(allocatedAddresses[i]);
         }
     }
 
-    function autoTransferLocked() onlyOwner public {
-        for (uint256 i = 0; i < allocatedAddresses.length; i++) {
+    function autoTransferLocked(uint256 _start, uint256 _end) onlyOwner public {
+        require(_start >= 0);
+        require(_end > 0);
+        require(_end > _start);
+        for (uint256 i = _start; i < _end; i++) {
             transferLockedBalance(allocatedAddresses[i]);
         }
     }
@@ -642,11 +664,21 @@ contract Crowdsale {
     }
 
     function transferToken(uint256 _tokens) external onlyOwner returns (bool success) {
+        //bool withinPeriod = hasStarted() && hasNotEnded();
+        //require(!withinPeriod);
         return token.transfer(owner, _tokens);
     }
 
     function tokenBalance() public view returns (uint256) {
         return token.balanceOf(address(this));
+    }
+
+    //destory contract with unsold tokens
+    function burnUnsold() public onlyOwner {
+        require(now > endTime);
+        require(weiRaised == 0);
+        require(unSoldTokens > 0);
+        selfdestruct(owner);
     }
 
 }

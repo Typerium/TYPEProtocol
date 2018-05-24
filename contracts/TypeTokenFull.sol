@@ -3,11 +3,11 @@ pragma solidity ^0.4.23;
 // File: contracts/OpenZeppelin/ERC20Basic.sol
 
 /**
- * @title ERC20Basic
+ * @title ERC20
  * @dev Simpler version of ERC20 interface
  * @dev see https://github.com/ethereum/EIPs/issues/179
  */
-contract ERC20Basic {
+contract ERC20 {
     function totalSupply() public view returns (uint256);
     function balanceOf(address who) public view returns (uint256);
     function transfer(address to, uint256 value) public returns (bool);
@@ -19,7 +19,8 @@ contract ERC20Basic {
 /**
  * @title SafeMath
  * @dev Math operations with safety checks that throw on error
- */
+*/
+
 library SafeMath {
 
   /**
@@ -62,478 +63,609 @@ library SafeMath {
   }
 }
 
-// File: contracts/OpenZeppelin/BasicToken.sol
-
 /**
- * @title Basic token
- * @dev Basic version of StandardToken, with no allowances.
+ * @title Crowdsale
+ * @dev Crowdsale is a base contract for managing a token crowdsale,
+ * allowing investors to purchase tokens with ether.
  */
-contract BasicToken is ERC20Basic {
-    using SafeMath for uint256;
 
-    mapping(address => uint256) balances;
+contract Crowdsale {
+  using SafeMath for uint256;
 
-    uint256 totalSupply_;
+  // The token being sold
+  ERC20 public token;
 
-    /**
-    * @dev total number of tokens in existence
-    */
-    function totalSupply() public view returns (uint256) {
-        return totalSupply_;
-    }
+  // Address where funds are collected
+  address public wallet;
 
-    /**
-    * @dev transfer token for a specified address
-    * @param _to The address to transfer to.
-    * @param _value The amount to be transferred.
-    */
-    function transfer(address _to, uint256 _value) public returns (bool) {
-        require(_to != address(0));
-        require(_value <= balances[msg.sender]);
+  // Address of the contract owner
+  address public owner;
 
-        // SafeMath.sub will throw if there is not enough balance.
-        balances[msg.sender] = balances[msg.sender].sub(_value);
-        balances[_to] = balances[_to].add(_value);
-        emit Transfer(msg.sender, _to, _value);
-        return true;
-    }
+  // The rate of tokens per ether. Only applied for the first tier, the first
+  // 150 million tokens sold
+  uint256 public rate;
 
-    /**
-    * @dev Gets the balance of the specified address.
-    * @param _owner The address to query the the balance of.
-    * @return An uint256 representing the amount owned by the passed address.
-    */
-    function balanceOf(address _owner) public view returns (uint256 balance) {
-        return balances[_owner];
-    }
+  // Amount of wei raised
+  uint256 public weiRaised;
 
-}
+  // Amount of sold tokens
+  uint256 public soldTokens;
 
-// File: contracts/OpenZeppelin/BurnableToken.sol
+  // Amount of tokens processed
+  uint256 public processedTokens;
 
-/**
- * @title Burnable Token
- * @dev Token that can be irreversibly burned (destroyed).
- */
-contract BurnableToken is BasicToken {
+  // Amount of unsold tokens to burn
+  uint256 public unSoldTokens;
 
-    event Burn(address indexed burner, uint256 value);
+  // Amount of locked tokens
+  uint256 public lockedTokens;
 
-    /**
-     * @dev Burns a specific amount of tokens.
-     * @param _value The amount of token to be burned.
-     */
-    function burn(uint256 _value) public {
-        require(_value <= balances[msg.sender]);
-        // no need to require value <= totalSupply, since that would imply the
-        // sender's balance is greater than the totalSupply, which *should* be an assertion failure
+  // Amount of alocated tokens
+  uint256 public allocatedTokens;
 
-        address burner = msg.sender;
-        balances[burner] = balances[burner].sub(_value);
-        totalSupply_ = totalSupply_.sub(_value);
-        emit Burn(burner, _value);
-        emit Transfer(burner, address(0), _value);
-    }
-}
+  // Amount of distributed tokens
+  uint256 public distributedTokens;
 
-// File: contracts/OpenZeppelin/ERC20.sol
+  // ICO state paused or not
+  bool public paused = false;
 
-/**
- * @title ERC20 interface
- * @dev see https://github.com/ethereum/EIPs/issues/20
- */
-contract ERC20 is ERC20Basic {
-    function allowance(address owner, address spender) public view returns (uint256);
-    function transferFrom(address from, address to, uint256 value) public returns (bool);
-    function approve(address spender, uint256 value) public returns (bool);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-}
+  // Minimal amount to exchange in ETH
+  uint256 public minPurchase = 1 finney;
 
-// File: contracts/OpenZeppelin/ERC827.sol
+  // Keeping track of current round
+  uint256 public currentRound;
 
-/**
-   @title ERC827 interface, an extension of ERC20 token standard
-   Interface of a ERC827 token, following the ERC20 standard with extra
-   methods to transfer value and data and execute calls in transfers and
-   approvals.
- */
-contract ERC827 is ERC20 {
+  // We can only sell maximum total amount- 1,000,000,000 tokens during the ICO
+  uint256 public constant maxTokensRaised = 1000000000E4;
 
-    function approve( address _spender, uint256 _value, bytes _data ) public returns (bool);
-    function transfer( address _to, uint256 _value, bytes _data ) public returns (bool);
-    function transferFrom( address _from, address _to, uint256 _value, bytes _data ) public returns (bool);
+  // Timestamp when the crowdsale starts 01/01/2018 @ 00:00am (UTC);
+  uint256 public startTime = 1514764800;
 
-}
+  // Timestamp when the initial round ends (UTC);
+  uint256 public currentRoundStart = startTime;
 
-// File: contracts/OpenZeppelin/StandardToken.sol
+  // Timestamp when the crowdsale ends 07/07/2018 @ 00:00am (UTC);
+  uint256 public endTime = 1530921600;
 
-/**
- * @title Standard ERC20 token
- *
- * @dev Implementation of the basic standard token.
- * @dev https://github.com/ethereum/EIPs/issues/20
- * @dev Based on code by FirstBlood: https://github.com/Firstbloodio/token/blob/master/smart_contract/FirstBloodToken.sol
- */
-contract StandardToken is ERC20, BasicToken {
+  // Timestamp when locked tokens become unlocked 21/09/2018 @ 00:00am (UTC);
+  uint256 public lockedTill = 1537488000;
 
-    mapping (address => mapping (address => uint256)) internal allowed;
+  // Timestamp when approved tokens become available 21/09/2018 @ 00:00am (UTC);
+  uint256 public approvedTill = 1537488000;
+
+  // How much each user paid for the crowdsale
+  mapping(address => uint256) public crowdsaleBalances;
+
+  // How many tokens each user got for the crowdsale
+  mapping(address => uint256) public tokensBought;
+
+  // How many tokens each user got for the crowdsale as bonus
+  mapping(address => uint256) public bonusBalances;
+
+  // How many tokens each user got locked
+  mapping(address => uint256) public lockedBalances;
+
+  // How many tokens each user got pre-delivered
+  mapping(address => uint256) public allocatedBalances;
+
+  // If user is approved to withdraw tokens
+  mapping(address => bool) public approved;
+
+  // How many tokens each user got distributed
+  mapping(address => uint256) public distributedBalances;
+
+  // Bonus levels per each round
+  mapping (uint256 => uint256) public bonusLevels;
+
+  // Rate levels per each round
+  mapping (uint256 => uint256) public rateLevels;
+
+  // Cap levels per each round
+  mapping (uint256 => uint256) public capLevels;
+
+  // To track list of contributors
+  address[] public allocatedAddresses;
 
 
-    /**
-     * @dev Transfer tokens from one address to another
-     * @param _from address The address which you want to send tokens from
-     * @param _to address The address which you want to transfer to
-     * @param _value uint256 the amount of tokens to be transferred
-     */
-    function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
-        require(_to != address(0));
-        require(_value <= balances[_from]);
-        require(_value <= allowed[_from][msg.sender]);
+  /**
+   * Event for token purchase logging
+   * @param purchaser who paid for the tokens
+   * @param beneficiary who got the tokens
+   * @param value weis paid for purchase
+   * @param amount amount of tokens purchased
+   */
 
-        balances[_from] = balances[_from].sub(_value);
-        balances[_to] = balances[_to].add(_value);
-        allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
-        emit Transfer(_from, _to, _value);
-        return true;
-    }
+  event TokenPurchase(address indexed purchaser, address indexed beneficiary, uint256 value, uint256 amount);
 
-    /**
-     * @dev Approve the passed address to spend the specified amount of tokens on behalf of msg.sender.
-     *
-     * Beware that changing an allowance with this method brings the risk that someone may use both the old
-     * and the new allowance by unfortunate transaction ordering. One possible solution to mitigate this
-     * race condition is to first reduce the spender's allowance to 0 and set the desired value afterwards:
-     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-     * @param _spender The address which will spend the funds.
-     * @param _value The amount of tokens to be spent.
-     */
-    function approve(address _spender, uint256 _value) public returns (bool) {
-        allowed[msg.sender][_spender] = _value;
-        emit Approval(msg.sender, _spender, _value);
-        return true;
-    }
+  event Pause();
+  event Unpause();
 
-    /**
-     * @dev Function to check the amount of tokens that an owner allowed to a spender.
-     * @param _owner address The address which owns the funds.
-     * @param _spender address The address which will spend the funds.
-     * @return A uint256 specifying the amount of tokens still available for the spender.
-     */
-    function allowance(address _owner, address _spender) public view returns (uint256) {
-        return allowed[_owner][_spender];
-    }
+  modifier onlyOwner() {
+    require(msg.sender == owner);
+    _;
+  }
 
-    /**
-     * @dev Increase the amount of tokens that an owner allowed to a spender.
-     *
-     * approve should be called when allowed[_spender] == 0. To increment
-     * allowed value is better to use this function to avoid 2 calls (and wait until
-     * the first transaction is mined)
-     * From MonolithDAO Token.sol
-     * @param _spender The address which will spend the funds.
-     * @param _addedValue The amount of tokens to increase the allowance by.
-     */
-    function increaseApproval(address _spender, uint _addedValue) public returns (bool) {
-        allowed[msg.sender][_spender] = allowed[msg.sender][_spender].add(_addedValue);
-        emit Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
-        return true;
-    }
+  modifier whenNotPaused() {
+    require(!paused);
+    _;
+  }
 
-    /**
-     * @dev Decrease the amount of tokens that an owner allowed to a spender.
-     *
-     * approve should be called when allowed[_spender] == 0. To decrement
-     * allowed value is better to use this function to avoid 2 calls (and wait until
-     * the first transaction is mined)
-     * From MonolithDAO Token.sol
-     * @param _spender The address which will spend the funds.
-     * @param _subtractedValue The amount of tokens to decrease the allowance by.
-     */
-    function decreaseApproval(address _spender, uint _subtractedValue) public returns (bool) {
-        uint oldValue = allowed[msg.sender][_spender];
-        if (_subtractedValue > oldValue) {
-            allowed[msg.sender][_spender] = 0;
-        } else {
-            allowed[msg.sender][_spender] = oldValue.sub(_subtractedValue);
+  modifier whenPaused() {
+    require(paused);
+    _;
+  }
+
+  function pause() onlyOwner whenNotPaused public {
+    paused = true;
+    emit Pause();
+  }
+
+  function unpause() onlyOwner whenPaused public {
+    paused = false;
+    emit Unpause();
+  }
+
+  function setNewBonusLevel (uint256 _bonusIndex, uint256 _bonusValue) onlyOwner external {
+    bonusLevels[_bonusIndex] = _bonusValue;
+  }
+
+  function setNewRateLevel (uint256 _rateIndex, uint256 _rateValue) onlyOwner external {
+    rateLevels[_rateIndex] = _rateValue;
+  }
+
+  function setMinPurchase (uint256 _minPurchase) onlyOwner external {
+    minPurchase = _minPurchase;
+  }
+
+   // @notice Set's the rate of tokens per ether for each round
+  function setNewRatesCustom (uint256 _r1, uint256 _r2, uint256 _r3, uint256 _r4, uint256 _r5, uint256 _r6) onlyOwner external {
+    require(_r1 > 0 && _r2 > 0 && _r3 > 0 && _r4 > 0 && _r5 > 0 && _r6 > 0);
+    rateLevels[1] = _r1;
+    rateLevels[2] = _r2;
+    rateLevels[3] = _r3;
+    rateLevels[4] = _r4;
+    rateLevels[5] = _r5;
+    rateLevels[6] = _r6;
+  }
+
+   // @notice Set's the rate of tokens per ether for each round
+  function setNewRatesBase (uint256 _r1) onlyOwner external {
+    require(_r1 > 0);
+    rateLevels[1] = _r1;
+    rateLevels[2] = _r1.div(2);
+    rateLevels[3] = _r1.div(3);
+    rateLevels[4] = _r1.div(4);
+    rateLevels[5] = _r1.div(5);
+    rateLevels[6] = _r1.div(5);
+  }
+
+  /**
+   * @param _rate Number of token units a buyer gets per ETH
+   * @param _wallet Address where collected funds will be forwarded to
+   * @param _token Address of the token being sold
+   */
+
+  constructor(uint256 _rate, address _wallet, address _owner, ERC20 _token) public {
+    require(_rate > 0);
+    require(_wallet != address(0));
+    require(_token != address(0));
+
+    wallet = _wallet;
+    token = _token;
+    owner = _owner;
+
+    soldTokens = 0;
+    unSoldTokens = 0;
+    processedTokens = 0;
+
+    lockedTokens = 0;
+    distributedTokens = 0;
+
+    currentRound = 1;
+
+    //bonus values per each round;
+    bonusLevels[1] =  5;
+    bonusLevels[2] = 10;
+    bonusLevels[3] = 15;
+    bonusLevels[4] = 20;
+    bonusLevels[5] = 50;
+    bonusLevels[6] = 0;
+
+    //rate values per each round;
+    rateLevels[1] = _rate;
+    rateLevels[2] = _rate.div(2);
+    rateLevels[3] = _rate.div(3);
+    rateLevels[4] = _rate.div(4);
+    rateLevels[5] = _rate.div(5);
+    rateLevels[6] = _rate.div(5);
+
+    //cap values per each round
+    capLevels[1] = 150000000E4;
+    capLevels[2] = 210000000E4;
+    capLevels[3] = 255000000E4;
+    capLevels[4] = 285000000E4;
+    capLevels[5] = 300000000E4;
+    capLevels[6] = maxTokensRaised;
+
+  }
+
+  // -----------------------------------------
+  // Crowdsale interface
+  // -----------------------------------------
+
+  function () external payable whenNotPaused {
+    buyTokens(msg.sender);
+  }
+
+  /**
+   * @dev low level token purchase
+   * @param _beneficiary Address performing the token purchase
+   */
+  function buyTokens(address _beneficiary) public payable whenNotPaused {
+
+    uint256 amountPaid = msg.value;
+    _preValidatePurchase(_beneficiary, amountPaid);
+
+    uint256 tokens = 0;
+    uint256 bonusTokens = 0;
+
+    if(processedTokens < capLevels[1]) {
+
+        tokens = _getTokensAmount(amountPaid, 1);
+        bonusTokens = _getBonusAmount(tokens, 1);
+
+        // If the amount of tokens that you want to buy gets out of round 1
+        if(processedTokens.add(tokens) > capLevels[1]) {
+            setCurrentRound(2);
+            tokens = _calculateExcessTokens(amountPaid, 1);
+            bonusTokens = _calculateExcessBonus(tokens, 2);
         }
-        emit Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
-        return true;
+
+    // Round 2
+    } else if(processedTokens >= capLevels[1] && processedTokens < capLevels[2]) {
+        tokens = _getTokensAmount(amountPaid, 2);
+        bonusTokens = _getBonusAmount(tokens, 2);
+
+        // If the amount of tokens that you want to buy gets out of round 2
+        if(processedTokens.add(tokens) > capLevels[2]) {
+            setCurrentRound(3);
+            tokens = _calculateExcessTokens(amountPaid, 2);
+            bonusTokens = _calculateExcessBonus(tokens, 3);
+        }
+
+    // Round 3
+    } else if(processedTokens >= capLevels[2] && processedTokens < capLevels[3]) {
+         tokens = _getTokensAmount(amountPaid, 3);
+         bonusTokens = _getBonusAmount(tokens, 3);
+
+         // If the amount of tokens that you want to buy gets out of round 3
+         if(processedTokens.add(tokens) > capLevels[3]) {
+            setCurrentRound(4);
+            tokens = _calculateExcessTokens(amountPaid, 3);
+            bonusTokens = _calculateExcessBonus(tokens, 4);
+         }
+
+    // Round 4
+    } else if(processedTokens >= capLevels[3] && processedTokens < capLevels[4]) {
+         tokens = _getTokensAmount(amountPaid, 4);
+         bonusTokens = _getBonusAmount(tokens, 4);
+
+         // If the amount of tokens that you want to buy gets out of round 4
+         if(processedTokens.add(tokens) > capLevels[4]) {
+            setCurrentRound(5);
+            tokens = _calculateExcessTokens(amountPaid, 4);
+            bonusTokens = _calculateExcessBonus(tokens, 5);
+         }
+
+    // Round 5
+    } else if(processedTokens >= capLevels[4] && processedTokens < capLevels[5]) {
+         tokens = _getTokensAmount(amountPaid, 5);
+         bonusTokens = _getBonusAmount(tokens, 5);
+
+         // If the amount of tokens that you want to buy gets out of round 5
+         if(processedTokens.add(tokens) > capLevels[5]) {
+            setCurrentRound(6);
+            tokens = _calculateExcessTokens(amountPaid, 5);
+            bonusTokens = 0;
+         }
+
+    // Round 6
+    } else if(processedTokens >= capLevels[5]) {
+        tokens = _getTokensAmount(amountPaid, 6);
     }
 
-}
+    // update state
+    weiRaised = weiRaised.add(amountPaid);
+    soldTokens = soldTokens.add(tokens);
+    soldTokens = soldTokens.add(bonusTokens);
+    processedTokens = processedTokens.add(soldTokens);
 
-// File: contracts/OpenZeppelin/ERC827Token.sol
+    // Keep a record of how many tokens everybody gets in case we need to do refunds
+    tokensBought[msg.sender] = tokensBought[msg.sender].add(tokens);
 
-/**
-   @title ERC827, an extension of ERC20 token standard
-   Implementation the ERC827, following the ERC20 standard with extra
-   methods to transfer value and data and execute calls in transfers and
-   approvals.
-   Uses OpenZeppelin StandardToken.
- */
-contract ERC827Token is ERC827, StandardToken {
+    // Kepp a record of how many wei everybody contributed in case we need to do refunds
+    crowdsaleBalances[msg.sender] = crowdsaleBalances[msg.sender].add(amountPaid);
 
-    /**
-       @dev Addition to ERC20 token methods. It allows to
-       approve the transfer of value and execute a call with the sent data.
-       Beware that changing an allowance with this method brings the risk that
-       someone may use both the old and the new allowance by unfortunate
-       transaction ordering. One possible solution to mitigate this race condition
-       is to first reduce the spender's allowance to 0 and set the desired value
-       afterwards:
-       https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-       @param _spender The address that will spend the funds.
-       @param _value The amount of tokens to be spent.
-       @param _data ABI-encoded contract call to call `_to` address.
-       @return true if the call function was executed successfully
-     */
-    function approve(address _spender, uint256 _value, bytes _data) public returns (bool) {
-        require(_spender != address(this));
+    // Kepp a record of how many token everybody got as bonus to display in
+    bonusBalances[msg.sender] = bonusBalances[msg.sender].add(bonusTokens);
 
-        super.approve(_spender, _value);
+   // Combine bought tokens with bonus tokens before sending to investor
+    uint256 totalTokens = tokens.add(bonusTokens);
 
-        require(_spender.call(_data));
+    // Distribute the token
+    _processPurchase(_beneficiary, totalTokens);
+    emit TokenPurchase(
+      msg.sender,
+      _beneficiary,
+      amountPaid,
+      totalTokens
+    );
+  }
 
-        return true;
+  // -----------------------------------------
+  // Internal interface (extensible)
+  // -----------------------------------------
+
+  /**
+   * @dev Validation of an incoming purchase. Use require statements to revert state when conditions are not met. Use super to concatenate validations.
+   * @param _beneficiary Address performing the token purchase
+   * @param _weiAmount Value in wei involved in the purchase
+   */
+  function _preValidatePurchase(address _beneficiary, uint256 _weiAmount) view internal {
+
+    require(_beneficiary != address(0));
+    require(_weiAmount != 0);
+
+    bool withinPeriod = hasStarted() && hasNotEnded();
+    bool nonZeroPurchase = msg.value > 0;
+    bool withinTokenLimit = processedTokens < maxTokensRaised;
+    bool minimumPurchase = msg.value >= minPurchase;
+
+    require(withinPeriod);
+    require(nonZeroPurchase);
+    require(withinTokenLimit);
+    require(minimumPurchase);
+  }
+
+
+  /**
+   * @dev Executed when a purchase has been validated and is ready to be executed. Not necessarily emits/sends tokens.
+   * @param _beneficiary Address receiving the tokens
+   * @param _tokenAmount Number of tokens to be purchased
+   */
+  function _processPurchase(address _beneficiary, uint256 _tokenAmount) internal {
+    uint256 _tokensToPreAllocate = _tokenAmount.div(2);
+    uint256 _tokensToLock = _tokenAmount.sub(_tokensToPreAllocate);
+
+    //record address for future distribution
+    allocatedAddresses.push(_beneficiary);
+
+    //pre allocate 50% of purchase for delivery in 30 days
+    _preAllocateTokens(_beneficiary, _tokensToPreAllocate);
+
+    //lock 50% of purchase for delivery after 4 months
+    _lockTokens(_beneficiary, _tokensToLock);
+
+    //approve by default (dissaprove manually)
+    approved[_beneficiary] = true;
+  }
+
+  function _lockTokens(address _beneficiary, uint256 _tokenAmount) internal {
+    lockedBalances[_beneficiary] = lockedBalances[_beneficiary].add(_tokenAmount);
+    lockedTokens = lockedTokens.add(_tokenAmount);
+  }
+
+  function _preAllocateTokens(address _beneficiary, uint256 _tokenAmount) internal {
+    allocatedBalances[_beneficiary] = allocatedBalances[_beneficiary].add(_tokenAmount);
+    allocatedTokens = allocatedTokens.add(_tokenAmount);
+  }
+
+  /**
+   * @dev Override to extend the way in which ether is converted to bonus tokens.
+   * @param _tokenAmount Value in wei to be converted into tokens
+   * @return Number of bonus tokens that can be distributed with the specified bonus percent
+   */
+  function _getBonusAmount(uint256 _tokenAmount, uint256 _bonusIndex) internal view returns (uint256) {
+    uint256 bonusValue = _tokenAmount.mul(bonusLevels[_bonusIndex]);
+    return bonusValue.div(100);
+  }
+
+    function _calculateExcessBonus(uint256 tokens, uint256 level) internal view returns (uint256 totalBonus) {
+        uint256 thisLevelTokens = processedTokens.add(tokens);
+        uint256 nextLevelTokens = thisLevelTokens.sub(capLevels[level]);
+        totalBonus = _getBonusAmount(nextLevelTokens, level);
     }
 
-    /**
-       @dev Addition to ERC20 token methods. Transfer tokens to a specified
-       address and execute a call with the sent data on the same transaction
-       @param _to address The address which you want to transfer to
-       @param _value uint256 the amout of tokens to be transfered
-       @param _data ABI-encoded contract call to call `_to` address.
-       @return true if the call function was executed successfully
-     */
-    function transfer(address _to, uint256 _value, bytes _data) public returns (bool) {
-        require(_to != address(this));
+   function _calculateExcessTokens(
+      uint256 amount,
+      uint256 roundSelected
+   ) internal returns(uint256 totalTokens) {
+      require(amount > 0);
+      require(roundSelected >= 1 && roundSelected <= 6);
 
-        super.transfer(_to, _value);
+      uint256 _rate = rateLevels[roundSelected];
+      uint256 weiThisRound = capLevels[roundSelected].sub(processedTokens).div(_rate);
+      uint256 weiNextRound = amount.sub(weiThisRound);
+      uint256 tokensNextRound = 0;
 
-        require(_to.call(_data));
-        return true;
+      // If there's excessive wei for the last tier, refund those
+      if(roundSelected != 6) {
+        tokensNextRound = _getTokensAmount(weiNextRound, roundSelected.add(1));
+      }
+      else
+         msg.sender.transfer(weiNextRound);
+
+      totalTokens = capLevels[roundSelected].sub(processedTokens).add(tokensNextRound);
+   }
+
+
+   function _getTokensAmount(uint256 weiPaid, uint256 roundSelected)
+        internal constant returns(uint256 calculatedTokens)
+   {
+      require(weiPaid > 0);
+      require(roundSelected >= 1 && roundSelected <= 6);
+      uint256 typeTokenWei = weiPaid.div(1E14);
+      calculatedTokens = typeTokenWei.mul(rateLevels[roundSelected]);
+
+   }
+
+  // -----------------------------------------
+  // External interface (withdraw)
+  // -----------------------------------------
+
+  /**
+   * @dev Determines how ETH is being transfered to owners wallet.
+   */
+  function _withdrawAllFunds() onlyOwner external {
+    wallet.transfer(weiRaised);
+    weiRaised = 0;
+  }
+
+  function _withdrawWei(uint256 _amount) onlyOwner external {
+    wallet.transfer(_amount);
+  }
+
+   function _changeLockDate(uint256 _newDate) onlyOwner external {
+    require(_newDate <= endTime.add(36 weeks));
+    lockedTill = _newDate;
+  }
+
+   function _changeApproveDate(uint256 _newDate) onlyOwner external {
+    require(_newDate <= endTime.add(12 weeks));
+    approvedTill = _newDate;
+  }
+
+  function changeWallet(address _newWallet) onlyOwner external {
+    wallet = _newWallet;
+  }
+
+   /// @notice Public function to check if the crowdsale has ended or not
+   function hasNotEnded() public constant returns(bool) {
+      return now < endTime && processedTokens < maxTokensRaised;
+   }
+
+   /// @notice Public function to check if the crowdsale has started or not
+   function hasStarted() public constant returns(bool) {
+      return now > startTime;
+   }
+
+    function setCurrentRound(uint256 _roundIndex) internal {
+        currentRound = _roundIndex;
+        currentRoundStart = now;
     }
 
-    /**
-       @dev Addition to ERC20 token methods. Transfer tokens from one address to
-       another and make a contract call on the same transaction
-       @param _from The address which you want to send tokens from
-       @param _to The address which you want to transfer to
-       @param _value The amout of tokens to be transferred
-       @param _data ABI-encoded contract call to call `_to` address.
-       @return true if the call function was executed successfully
-     */
-    function transferFrom(address _from, address _to, uint256 _value, bytes _data) public returns (bool) {
-        require(_to != address(this));
+    //move to next round by overwriting soldTokens value, unsold tokens will be burned;
+   function goNextRound() onlyOwner external {
+       require(currentRound < 6);
+       uint256 notSold = getUnsold();
+       unSoldTokens = unSoldTokens.add(notSold);
+       processedTokens = capLevels[currentRound];
+       currentRound = currentRound.add(1);
+       currentRoundStart = now;
+   }
 
-        super.transferFrom(_from, _to, _value);
-
-        require(_to.call(_data));
-        return true;
+    function getUnsold() internal view returns (uint256) {
+        uint256 unSold = capLevels[currentRound].sub(processedTokens);
+        return unSold;
     }
 
-    /**
-     * @dev Addition to StandardToken methods. Increase the amount of tokens that
-     * an owner allowed to a spender and execute a call with the sent data.
-     *
-     * approve should be called when allowed[_spender] == 0. To increment
-     * allowed value is better to use this function to avoid 2 calls (and wait until
-     * the first transaction is mined)
-     * From MonolithDAO Token.sol
-     * @param _spender The address which will spend the funds.
-     * @param _addedValue The amount of tokens to increase the allowance by.
-     * @param _data ABI-encoded contract call to call `_spender` address.
-     */
-    function increaseApproval(address _spender, uint _addedValue, bytes _data) public returns (bool) {
-        require(_spender != address(this));
-
-        super.increaseApproval(_spender, _addedValue);
-
-        require(_spender.call(_data));
-
-        return true;
+    function checkUnsold() onlyOwner external view returns (uint256) {
+        uint256 unSold = capLevels[currentRound].sub(processedTokens);
+        return unSold;
     }
 
-    /**
-     * @dev Addition to StandardToken methods. Decrease the amount of tokens that
-     * an owner allowed to a spender and execute a call with the sent data.
-     *
-     * approve should be called when allowed[_spender] == 0. To decrement
-     * allowed value is better to use this function to avoid 2 calls (and wait until
-     * the first transaction is mined)
-     * From MonolithDAO Token.sol
-     * @param _spender The address which will spend the funds.
-     * @param _subtractedValue The amount of tokens to decrease the allowance by.
-     * @param _data ABI-encoded contract call to call `_spender` address.
-     */
-    function decreaseApproval(address _spender, uint _subtractedValue, bytes _data) public returns (bool) {
-        require(_spender != address(this));
-
-        super.decreaseApproval(_spender, _subtractedValue);
-
-        require(_spender.call(_data));
-
-        return true;
+    function round() public view returns(uint256) {
+        return currentRound;
     }
 
-}
-
-// File: contracts/OpenZeppelin/Ownable.sol
-
-/**
- * @title Ownable
- * @dev The Ownable contract has an owner address, and provides basic authorization control
- * functions, this simplifies the implementation of "user permissions".
- */
-contract Ownable {
-    address public owner;
-
-
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-
-    /**
-     * @dev The Ownable constructor sets the original `owner` of the contract to the sender
-     * account.
-     */
-    constructor() public {
-        owner = msg.sender;
+    function currentBonusLevel() public view returns(uint256) {
+        return bonusLevels[currentRound];
     }
 
-    /**
-     * @dev Throws if called by any account other than the owner.
-     */
-    modifier onlyOwner() {
-        require(msg.sender == owner);
-        _;
+    function currentRateLevel() public view returns(uint256) {
+        return rateLevels[currentRound];
     }
 
-    /**
-     * @dev Allows the current owner to transfer control of the contract to a newOwner.
-     * @param newOwner The address to transfer ownership to.
-     */
-    function transferOwnership(address newOwner) public onlyOwner {
-        require(newOwner != address(0));
-        emit OwnershipTransferred(owner, newOwner);
-        owner = newOwner;
+    function currentCapLevel() public view returns(uint256) {
+        return capLevels[currentRound];
     }
 
-}
-
-// File: contracts/OpenZeppelin/Pausable.sol
-
-/**
- * @title Pausable
- * @dev Base contract which allows children to implement an emergency stop mechanism.
- */
-contract Pausable is Ownable {
-    event Pause();
-    event Unpause();
-
-    bool public paused = false;
-
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is not paused.
-     */
-    modifier whenNotPaused() {
-        require(!paused);
-        _;
+    function changeApproval(address _beneficiary, bool _newStatus) onlyOwner public {
+        approved[_beneficiary] = _newStatus;
     }
 
-    /**
-     * @dev Modifier to make a function callable only when the contract is paused.
-     */
-    modifier whenPaused() {
-        require(paused);
-        _;
+    function massApproval(bool _newStatus, uint256 _start, uint256 _end) onlyOwner public {
+        require(_start >= 0);
+        require(_end > 0);
+        require(_end > _start);
+        for (uint256 i = _start; i < _end; i++) {
+            approved[allocatedAddresses[i]] = _newStatus;
+        }
     }
 
-    /**
-     * @dev called by the owner to pause, triggers stopped state
-     */
-    function pause() onlyOwner whenNotPaused public {
-        paused = true;
-        emit Pause();
+    function autoTransferApproved(uint256 _start, uint256 _end) onlyOwner public {
+        require(_start >= 0);
+        require(_end > 0);
+        require(_end > _start);
+        for (uint256 i = _start; i < _end; i++) {
+            transferApprovedBalance(allocatedAddresses[i]);
+        }
     }
 
-    /**
-     * @dev called by the owner to unpause, returns to normal state
-     */
-    function unpause() onlyOwner whenPaused public {
-        paused = false;
-        emit Unpause();
-    }
-}
-
-// File: contracts/OpenZeppelin/PausableToken.sol
-
-/**
- * @title Pausable token
- * @dev StandardToken modified with pausable transfers.
- **/
-contract PausableToken is StandardToken, Pausable {
-
-    function transfer(address _to, uint256 _value) public whenNotPaused returns (bool) {
-        return super.transfer(_to, _value);
+    function autoTransferLocked(uint256 _start, uint256 _end) onlyOwner public {
+        require(_start >= 0);
+        require(_end > 0);
+        require(_end > _start);
+        for (uint256 i = _start; i < _end; i++) {
+            transferLockedBalance(allocatedAddresses[i]);
+        }
     }
 
-    function transferFrom(address _from, address _to, uint256 _value) public whenNotPaused returns (bool) {
-        return super.transferFrom(_from, _to, _value);
+    function transferApprovedBalance(address _beneficiary) public {
+        require(_beneficiary != address(0));
+        require(now >= approvedTill);
+        require(allocatedTokens > 0);
+        require(approved[_beneficiary]);
+        require(allocatedBalances[_beneficiary] > 0);
+
+        uint256 _approvedTokensToTransfer = allocatedBalances[_beneficiary];
+        token.transfer(_beneficiary, _approvedTokensToTransfer);
+        distributedBalances[_beneficiary] = distributedBalances[_beneficiary].add(_approvedTokensToTransfer);
+        allocatedTokens.sub(_approvedTokensToTransfer);
+        allocatedBalances[_beneficiary] = 0;
+        distributedTokens = distributedTokens.add(_approvedTokensToTransfer);
     }
 
-    function approve(address _spender, uint256 _value) public whenNotPaused returns (bool) {
-        return super.approve(_spender, _value);
+    function transferLockedBalance(address _beneficiary) public {
+        require(_beneficiary != address(0));
+        require(now >= lockedTill);
+        require(lockedTokens > 0);
+        require(approved[_beneficiary]);
+        require(lockedBalances[_beneficiary] > 0);
+
+        uint256 _lockedTokensToTransfer = lockedBalances[_beneficiary];
+        token.transfer(_beneficiary, _lockedTokensToTransfer);
+        distributedBalances[_beneficiary] = distributedBalances[_beneficiary].add(_lockedTokensToTransfer);
+        lockedTokens.sub(_lockedTokensToTransfer);
+        lockedBalances[_beneficiary] = 0;
+        distributedTokens = distributedTokens.add(_lockedTokensToTransfer);
     }
 
-    function increaseApproval(address _spender, uint _addedValue) public whenNotPaused returns (bool success) {
-        return super.increaseApproval(_spender, _addedValue);
+    function transferToken(uint256 _tokens) external onlyOwner returns (bool success) {
+        //bool withinPeriod = hasStarted() && hasNotEnded();
+        //require(!withinPeriod);
+        return token.transfer(owner, _tokens);
     }
 
-    function decreaseApproval(address _spender, uint _subtractedValue) public whenNotPaused returns (bool success) {
-        return super.decreaseApproval(_spender, _subtractedValue);
-    }
-}
-
-// File: contracts/PausableERC827Token.sol
-
-/**
- * @title Pausable ERC827 token
- * @dev ERC827 token modified with pausable functions.
- **/
-contract PausableERC827Token is ERC827Token, PausableToken {
-
-    function transfer(address _to, uint256 _value, bytes _data) public whenNotPaused returns (bool) {
-        return super.transfer(_to, _value, _data);
+    function tokenBalance() public view returns (uint256) {
+        return token.balanceOf(address(this));
     }
 
-    function transferFrom(address _from, address _to, uint256 _value, bytes _data) public whenNotPaused returns (bool) {
-        return super.transferFrom(_from, _to, _value, _data);
+    //destory contract with unsold tokens
+    function burnUnsold() public onlyOwner {
+        require(weiRaised == 0);
+        require(unSoldTokens > 0);
+        selfdestruct(owner);
     }
 
-    function approve(address _spender, uint256 _value, bytes _data) public whenNotPaused returns (bool) {
-        return super.approve(_spender, _value, _data);
-    }
-
-    function increaseApproval(address _spender, uint _addedValue, bytes _data) public whenNotPaused returns (bool) {
-        return super.increaseApproval(_spender, _addedValue, _data);
-    }
-
-    function decreaseApproval(address _spender, uint _subtractedValue, bytes _data) public whenNotPaused returns (bool) {
-        return super.decreaseApproval(_spender, _subtractedValue, _data);
-    }
-}
-
-// File: contracts/TypeToken.sol
-
-contract TypeToken is PausableERC827Token, BurnableToken {
-
-    string public constant name = "Typerium";
-    string public constant symbol = "TYPE";
-    uint32 public constant decimals = 4;
-
-    constructor() public {
-        totalSupply_ = 20000000000000E4;
-        balances[owner] = totalSupply_; // Add all tokens to issuer balance
-    }
 }
