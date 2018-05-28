@@ -110,7 +110,7 @@ contract Crowdsale {
   bool public paused = false;
 
   // Minimal amount to exchange in ETH
-  uint256 public minPurchase = 1 finney;
+  uint256 public minPurchase = 53 finney;
 
   // Keeping track of current round
   uint256 public currentRound;
@@ -119,19 +119,19 @@ contract Crowdsale {
   uint256 public constant maxTokensRaised = 1000000000E4;
 
   // Timestamp when the crowdsale starts 01/01/2018 @ 00:00am (UTC);
-  uint256 public startTime = now;
+  uint256 public startTime = 1527703200;
 
   // Timestamp when the initial round ends (UTC);
   uint256 public currentRoundStart = startTime;
 
   // Timestamp when the crowdsale ends 07/07/2018 @ 00:00am (UTC);
-  uint256 public endTime = 1530921600;
+  uint256 public endTime = 1532386740;
 
   // Timestamp when locked tokens become unlocked 21/09/2018 @ 00:00am (UTC);
-  uint256 public lockedTill = 1537488000;
+  uint256 public lockedTill = 1542931200;
 
   // Timestamp when approved tokens become available 21/09/2018 @ 00:00am (UTC);
-  uint256 public approvedTill = 1537488000;
+  uint256 public approvedTill = 1535328000;
 
   // How much each user paid for the crowdsale
   mapping(address => uint256) public crowdsaleBalances;
@@ -529,8 +529,7 @@ contract Crowdsale {
    * @dev Determines how ETH is being transfered to owners wallet.
    */
   function _withdrawAllFunds() onlyOwner external {
-    wallet.transfer(weiRaised);
-    weiRaised = 0;
+    wallet.transfer(address(this).balance);
   }
 
   function _withdrawWei(uint256 _amount) onlyOwner external {
@@ -643,7 +642,7 @@ contract Crowdsale {
         uint256 _approvedTokensToTransfer = allocatedBalances[_beneficiary];
         token.transfer(_beneficiary, _approvedTokensToTransfer);
         distributedBalances[_beneficiary] = distributedBalances[_beneficiary].add(_approvedTokensToTransfer);
-        allocatedTokens.sub(_approvedTokensToTransfer);
+        allocatedTokens = allocatedTokens.sub(_approvedTokensToTransfer);
         allocatedBalances[_beneficiary] = 0;
         distributedTokens = distributedTokens.add(_approvedTokensToTransfer);
     }
@@ -658,7 +657,7 @@ contract Crowdsale {
         uint256 _lockedTokensToTransfer = lockedBalances[_beneficiary];
         token.transfer(_beneficiary, _lockedTokensToTransfer);
         distributedBalances[_beneficiary] = distributedBalances[_beneficiary].add(_lockedTokensToTransfer);
-        lockedTokens.sub(_lockedTokensToTransfer);
+        lockedTokens = lockedTokens.sub(_lockedTokensToTransfer);
         lockedBalances[_beneficiary] = 0;
         distributedTokens = distributedTokens.add(_lockedTokensToTransfer);
     }
@@ -675,8 +674,10 @@ contract Crowdsale {
 
     //destory contract with unsold tokens
     function burnUnsold() public onlyOwner {
-        require(now > endTime);
-        require(weiRaised == 0);
+        require(now > lockedTill);
+        require(address(this).balance == 0);
+        require(lockedTokens == 0);
+        require(allocatedTokens == 0);
         require(unSoldTokens > 0);
         selfdestruct(owner);
     }
