@@ -158,7 +158,14 @@
         //when the round starts/ends
         contractInstance.methods.currentRoundStart().call().then(function(value) {
           document.getElementById('start-time').innerHTML = moment.unix(value).format();
-          document.getElementById('end-time').innerHTML = moment.unix(value).add(7,'d').format();
+          contractInstance.methods.round().call().then(function(currentRound) {
+            if(currentRound == 6) {
+              document.getElementById('end-time').innerHTML = '2018-07-23T10:00:00'
+            }
+            else {
+              document.getElementById('end-time').innerHTML = moment.unix(value).add(7,'d').format();
+            }
+          });
         });
         //when unlock date is
         contractInstance.methods.lockedTill().call().then(function(value) {
