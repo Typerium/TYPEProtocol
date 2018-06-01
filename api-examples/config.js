@@ -1,7 +1,7 @@
-var apiURL = "https://ropsten.infura.io/M6z4fZW1F0INgQ5TGwGO";   // remove ropsten. when going main-net
+var apiURL = "https://mainnet.infura.io/M6z4fZW1F0INgQ5TGwGO";   // remove ropsten. when going main-net
 
 //address of crowdSale smart-contract
-var contractAddress = '0x89a7ab836ee010601b6101b40de77cf8ba915003'; // change when real-contract published
+var contractAddress = '0x85EafC29690c6D64C8513499B6Bea8864fBEb6D7'; // change when real-contract published
 /* crowdSale Interface Configuration Start */
 
 var crowdSaleAbi = [

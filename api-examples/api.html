@@ -6,9 +6,9 @@
 <script>
 
 //connect to web3-provider
-var web3 = new Web3(new Web3.providers.HttpProvider(apiURL));
+var web3infura = new Web3(new Web3.providers.HttpProvider(apiURL));
 
-var contractInstance = new web3.eth.Contract(crowdSaleAbi, contractAddress);
+var contractInstance = new web3infura.eth.Contract(crowdSaleAbi, contractAddress);
 
 var tokenDecimals = 4;
 var etherDecimals = 18;
@@ -104,7 +104,7 @@ function currentRate() {
 
   function allowance() {
     var sender = document.getElementById('allowance').value;
-    if(web3.isAddress(sender)) {
+    if(web3infura.isAddress(sender)) {
       tokenContract.allowance(sender, escrowContractAddress, (err, res) => {
         console.log(res/(10 ** decimals) + ' CL');
         alert(res/(10 ** decimals) + ' CL');
@@ -115,7 +115,25 @@ function currentRate() {
   }
 
   function buy() {
-    alert('coming soon...')
+    if(typeof web3 !== 'undefined') {
+      var etherToSend = 0.05;
+      var wei = web3.toWei(etherToSend);
+      web3.eth.sendTransaction(
+          {
+          to: contractAddress,
+          value: web3.toHex(wei),
+          gas: 300000,
+          gasPrice: 15000000000,
+          }, function(err, transactionHash) {
+        if (!err)
+          console.log(transactionHash);
+      });
+    }
+    else {
+      //can hide button and show contractAddress instead
+      alert('Need Metamask'); // can show info for manual send
+      alert('Consider sending directly to ' + contractAddress);
+    }
   }
 
 
