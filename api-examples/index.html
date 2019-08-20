@@ -144,7 +144,7 @@
           document.getElementById('rate').innerHTML = value;
         });
         //amount of ETH raised so far
-        contractInstance.methods.weiRaised().call().then(function(amount) {
+        web3.eth.getBalance(contractAddress).then(function(amount) {
           document.getElementById('raised').innerHTML = amount / (10 ** etherDecimals);
         });
         //how many tokens been transfered/distributed from contract to seller, not including locked tokens
